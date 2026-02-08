@@ -1,20 +1,22 @@
 import { Message, TextChannel } from 'discord.js';
+import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { env } from 'node:process';
 import { isBusy } from './isBusy.js';
-import { claudeSchema, discordSchema } from './schema.js';
+import { botSchema, discordSchema } from './schema.js';
 import { respondToMessage } from './respondToMessage.js';
 import { createDiscordClient } from './createDiscordClient.js';
-import { createClaudeClient } from './createClaudeClient.js';
-import { ConversationState } from './ConversationState.js';
+
+const LOCK_FILE = '.bot.lock';
 
 const main = async () => {
   console.log('Starting simple-claude-bot...');
 
-  let processing: Promise<void> | undefined;
-  const state = ConversationState.load();
+  const freshStart = !existsSync(LOCK_FILE);
+  writeFileSync(LOCK_FILE, String(process.pid));
 
-  const { ANTHROPIC_API_KEY, CLAUDE_CHANNEL } = claudeSchema.parse(env);
-  const claude = createClaudeClient(ANTHROPIC_API_KEY);
+  let processing: Promise<void> | undefined;
+
+  const { CLAUDE_CHANNEL } = botSchema.parse(env);
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
@@ -27,9 +29,6 @@ const main = async () => {
 
   const shutdown = async (signal: string) => {
     console.log(`Received ${signal}, shutting down...`);
-    if (botChannel) {
-      await botChannel.send('Goodbye! I\'m going offline now.').catch(() => {});
-    }
     client.destroy();
     console.log('Shutdown complete.');
     process.exit(0);
@@ -42,7 +41,7 @@ const main = async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     console.log(`Listening for messages in #${CLAUDE_CHANNEL}`);
     botChannel = findChannel();
-    if (botChannel) {
+    if (botChannel && freshStart) {
       await botChannel.send('Hello! I\'m online and ready to chat.');
     }
   });
@@ -57,14 +56,23 @@ const main = async () => {
       return;
     }
 
+    if (message.content === '/shutdown') {
+      console.log('Shutdown command received');
+      if (botChannel) {
+        await botChannel.send('Goodbye! I\'m going offline now.');
+      }
+      unlinkSync(LOCK_FILE);
+      client.destroy();
+      process.exit(0);
+    }
+
     console.log(`${message.author.displayName}: ${message.content}`);
-    state.addUserMessage(`${message.author.displayName}: ${message.content}`);
 
     const stillBusy = await isBusy(processing);
     if (stillBusy) {
-      await message.react('⏳');
+      await message.react('\u23F3');
     } else {
-      processing = respondToMessage(message, channel, claude, state);
+      processing = respondToMessage(message, channel);
     }
   });
 
