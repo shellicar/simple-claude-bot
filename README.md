@@ -86,9 +86,3 @@ Listening for messages in #claude
 ## Usage
 
 Just send messages in the `#claude` channel. The bot will respond with Claude's replies and maintain conversation context.
-
-## Architecture
-
-- `src/main.ts` - Main bot logic (~130 lines)
-- `build.ts` - esbuild bundler configuration
-- Single entry point, no complex abstractions

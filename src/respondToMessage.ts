@@ -10,20 +10,28 @@ export async function respondToMessage(
   state: ConversationState,
 ): Promise<void> {
   try {
-    state.addUserMessage(message.content);
+    const systemPrompt = `You are a helpful assistant in a group chat. 
+Messages will be formatted as "username: message". 
+The username before the colon is who is speaking to you. 
+Treat it as metadata, not as part of their message.`;
+
+    console.log(`${message.author.displayName}: ${message.content}`);
+    state.addUserMessage(`${message.author.displayName}: ${message.content}`);
 
     await channel.sendTyping();
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5-20251101',
+      model: 'claude-opus-4-6',
       max_tokens: 4096,
       messages: state.getMessages(),
+      system: systemPrompt,
     });
 
     const assistantMessage = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')
       .map((block) => block.text)
       .join('\n');
+    console.log(`Response: ${assistantMessage}`);
 
     state.addAssistantMessage(assistantMessage);
 

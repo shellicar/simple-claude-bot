@@ -2,7 +2,7 @@ import cleanPlugin from '@shellicar/build-clean/esbuild';
 import versionPlugin from '@shellicar/build-version/esbuild';
 import * as esbuild from 'esbuild';
 import { glob } from 'glob';
-import { builtinModules } from 'node:module';
+
 const watch = process.argv.some((x) => x === '--watch');
 const minify = !watch;
 
@@ -20,7 +20,6 @@ const ctx = await esbuild.context({
   inject,
   chunkNames: 'chunks/[name]-[hash]',
   entryNames: '[name]',
-  packages: 'external',
   keepNames: true,
   format: 'esm',
   minify,
@@ -28,6 +27,7 @@ const ctx = await esbuild.context({
   platform: 'node',
   plugins,
   sourcemap: true,
+  splitting: true,
   target: 'node22',
   treeShaking: true,
   tsconfig: 'tsconfig.json',
