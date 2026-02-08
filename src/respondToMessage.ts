@@ -29,21 +29,25 @@ You MUST always respond using the following template format. Each reply is a blo
 
 ---
 replyTo: userId
+ping: false
 message: Your message here
 ---
 
 Fields:
 - replyTo (optional): The userId to reply to. Must be the userId (not the display name). If omitted, the message is sent to the channel without replying to anyone.
+- ping (optional): Whether to ping/notify the user. Defaults to false. Only takes effect when replyTo is set. Use sparingly - only ping when the user needs to be notified (e.g. answering their direct question). Don't ping for casual conversation or follow-ups.
 - delay (optional): Milliseconds to wait after the previous message before sending this one. If omitted, send immediately.
 - message (required): The content of your reply. Can be multiple lines. Use the person's display name when addressing them, not their userId.
 
 Example with multiple replies:
 ---
 replyTo: 123456789
+ping: true
 message: Hey Alice, great question! The answer is 42.
 ---
 delay: 1000
 replyTo: 987654321
+ping: false
 message: Bob, I think you're right about that.
 ---
 delay: 500
@@ -86,6 +90,72 @@ function buildContentBlocks(messages: Message[]): ContentBlockParam[] {
   }
 
   return blocks;
+}
+
+export async function sendUnprompted(
+  prompt: string,
+  channel: TextChannel,
+  systemPrompt: string,
+): Promise<void> {
+  try {
+    await channel.sendTyping();
+    logger.info(`Unprompted: ${prompt}`);
+
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      logger.debug(`Still waiting after ${elapsed}s...`);
+    }, 5000);
+
+    let result = '';
+    try {
+      const q = query({
+        prompt,
+        options: {
+          pathToClaudeCodeExecutable: '/home/stephen/.local/bin/claude',
+          model: 'claude-opus-4-6',
+          allowedTools: [],
+          maxTurns: 1,
+          systemPrompt,
+          ...(sessionId ? { resume: sessionId } : {}),
+        },
+      });
+
+      for await (const msg of q) {
+        if (msg.type === 'system' && msg.subtype === 'init') {
+          sessionId = msg.session_id;
+          writeFileSync(SESSION_FILE, sessionId);
+        }
+        if (msg.type === 'result' && msg.subtype === 'success') {
+          result = msg.result;
+        }
+      }
+    } finally {
+      clearInterval(timer);
+    }
+
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    logger.info(`Response (${elapsed}s): ${result}`);
+
+    if (!result) {
+      logger.warn('Empty unprompted response');
+      return;
+    }
+
+    const replies = parseResponse(result);
+
+    for (const reply of replies) {
+      if (reply.delay) {
+        await setTimeout(reply.delay);
+      }
+      for (const chunk of chunkMessage(reply.message)) {
+        await channel.send(chunk);
+      }
+    }
+  } catch (error) {
+    logger.error(`Error in unprompted message: ${error}`);
+    sessionId = undefined;
+  }
 }
 
 export async function respondToMessages(
@@ -178,7 +248,7 @@ export async function respondToMessages(
         await setTimeout(reply.delay);
       }
 
-      const target = reply.replyTo ? messagesByUserId.get(reply.replyTo) : undefined;
+      const target = reply.replyTo && reply.ping ? messagesByUserId.get(reply.replyTo) : undefined;
 
       for (const chunk of chunkMessage(reply.message)) {
         if (target) {
