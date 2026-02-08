@@ -11,7 +11,7 @@ const plugins = [
   versionPlugin({}),
 ];
 
-const entryPoints = await glob('./src/main.ts');
+const entryPoints = await glob('./src/{main,setup,verify}.ts');
 const inject = await glob('./inject/*.ts');
 
 const ctx = await esbuild.context({

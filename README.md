@@ -1,14 +1,20 @@
 # Simple Claude Discord Bot
 
-A minimal Discord bot that provides Claude AI chat in a dedicated channel.
+A minimal Discord bot that provides Claude AI chat in a dedicated channel using the Claude Agent SDK.
 
 ## Features
 
-- Responds only in a configured `#claude` channel
-- Maintains conversation history with context
-- Auto-trims history when approaching token limits (~180k)
-- Ignores messages while processing (no queue complexity)
-- No shell, git, or system commands - just chat
+- Responds only in a configured channel within a specific guild
+- Session-based conversation continuity via Claude Agent SDK session resumption
+- Message queuing with batched processing
+- Structured reply format with per-user replies, ping control, and delays
+- Image attachment support (JPEG, PNG, GIF, WebP)
+- Long message chunking for Discord's 2000 character limit
+- WebSearch and WebFetch tools enabled for responses
+- Startup greeting on fresh starts
+- Stdin commands (`/shutdown`, `/prompt`)
+- Graceful shutdown on SIGINT/SIGTERM
+- No shell or system commands - security by design
 
 ## Setup
 
@@ -30,27 +36,7 @@ A minimal Discord bot that provides Claude AI chat in a dedicated channel.
 2. Enable **MESSAGE CONTENT INTENT** (required for reading message text)
 3. Click **"Save Changes"**
 
-### 2. Get Anthropic API Key
-
-1. Go to [Anthropic Console](https://console.anthropic.com/)
-2. Sign in or create an account
-3. Go to **"API Keys"** in the sidebar
-4. Click **"Create Key"**
-5. Copy the key - save this for later as `ANTHROPIC_API_KEY`
-
-### 3. Invite Bot to Your Server
-
-1. Back in Discord Developer Portal, go to **"OAuth2"** > **"URL Generator"**
-2. Under **Scopes**, check: `bot`
-3. Under **Bot Permissions**, check:
-   - `View Channels`
-   - `Send Messages`
-   - `Read Message History`
-4. Copy the **Generated URL** at the bottom
-5. Open the URL in your browser
-6. Select your server and click **"Authorize"**
-
-### 4. Configure Environment
+### 2. Configure Environment
 
 ```bash
 cp .env.example .env
@@ -60,29 +46,54 @@ Edit `.env` with your values:
 
 ```bash
 DISCORD_TOKEN=paste_your_discord_bot_token_here
-ANTHROPIC_API_KEY=paste_your_anthropic_api_key_here
 CLAUDE_CHANNEL=claude
+DISCORD_GUILD=your_guild_id
 ```
+
+### 3. Install & Build
+
+```bash
+pnpm install
+pnpm build
+```
+
+### 4. Invite Bot to Your Server
+
+1. Run `pnpm setup` to verify your application and get an invite URL
+2. Open the URL in your browser
+3. Select your server and click **"Authorize"**
 
 ### 5. Create the Channel
 
 In your Discord server, create a text channel named `#claude` (or whatever you set in `CLAUDE_CHANNEL`).
 
-### 6. Install & Run
+### 6. Verify Setup
 
 ```bash
-pnpm install
-pnpm build
+pnpm verify
+```
+
+This checks the bot's permissions and channel access in the configured guild.
+
+### 7. Run
+
+```bash
 pnpm start
 ```
 
-You should see:
+## Environment Variables
 
-```text
-Logged in as YourBotName#1234
-Listening for messages in #claude
-```
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DISCORD_TOKEN` | Yes | — | Discord bot token |
+| `CLAUDE_CHANNEL` | No | `claude` | Channel name to respond in |
+| `DISCORD_GUILD` | Yes | — | Guild ID to restrict the bot to |
 
 ## Usage
 
-Just send messages in the `#claude` channel. The bot will respond with Claude's replies and maintain conversation context.
+Send messages in the configured channel. The bot will respond with Claude's replies and maintain conversation context across sessions.
+
+### Stdin Commands
+
+- `/shutdown` — Sends a goodbye message and exits gracefully
+- `/prompt` — Sends an unprompted message (random thought/fun fact)
