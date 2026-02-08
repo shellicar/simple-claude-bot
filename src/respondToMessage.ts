@@ -1,23 +1,204 @@
-import { query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { Message, TextChannel } from 'discord.js';
-import { Instant, ZoneId } from '@js-joda/core';
+import { Collection, Message, TextChannel } from 'discord.js';
+import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
+import { Locale } from '@js-joda/locale_en';
 import '@js-joda/timezone';
+import { execFileSync } from 'node:child_process';
 import { chunkMessage } from './chunkMessage.js';
 import { logger } from './logger.js';
 import { parseResponse } from './parseResponse.js';
 
+const claudePath = process.env.CLAUDE_PATH ?? execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim();
+
+export interface SandboxConfig {
+  readonly enabled: boolean;
+  readonly directory: string;
+}
+
+const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const;
+
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 const zone = ZoneId.systemDefault();
+const timestampFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy 'at' HH:mm:ss VV (xxx)").withLocale(Locale.ENGLISH);
 
-const SESSION_FILE = '.bot.session';
+const claudeDir = join(homedir(), '.claude');
+const DISCORD_SESSION_FILE = join(claudeDir, '.bot.session');
+const DIRECT_SESSION_FILE = join(claudeDir, '.bot.direct-session');
+const COMPACT_FILE = join(claudeDir, '.bot.compact');
 
-let sessionId: string | undefined = existsSync(SESSION_FILE)
-  ? readFileSync(SESSION_FILE, 'utf-8').trim() || undefined
-  : undefined;
+function loadSessionId(file: string): string | undefined {
+  return existsSync(file) ? readFileSync(file, 'utf-8').trim() || undefined : undefined;
+}
+
+let discordSessionId = loadSessionId(DISCORD_SESSION_FILE);
+let directSessionId = loadSessionId(DIRECT_SESSION_FILE);
+
+function buildQueryOptions(params: {
+  systemPrompt: string;
+  allowedTools: string[];
+  maxTurns: number;
+  sandboxConfig: SandboxConfig;
+  sessionId?: string;
+}): Options {
+  const { systemPrompt, allowedTools, maxTurns, sandboxConfig, sessionId } = params;
+  const sandboxEnabled = sandboxConfig.enabled;
+
+  return {
+    pathToClaudeCodeExecutable: claudePath,
+    model: 'claude-opus-4-6',
+    cwd: sandboxConfig.directory,
+    allowedTools: sandboxEnabled ? [...allowedTools, ...SANDBOX_TOOLS] : allowedTools,
+    maxTurns: sandboxEnabled && maxTurns < 3 ? 3 : maxTurns,
+    systemPrompt: sandboxEnabled
+      ? `${systemPrompt}\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details.`
+      : systemPrompt,
+    ...(sandboxEnabled
+      ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }
+      : {}),
+    ...(sessionId ? { resume: sessionId } : {}),
+  } satisfies Options;
+}
+
+async function executeQuery(
+  prompt: string | AsyncIterable<SDKUserMessage>,
+  options: Options,
+  onSessionId: (id: string) => void,
+): Promise<string> {
+  const startTime = Date.now();
+  const timer = setInterval(() => {
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
+    logger.debug(`Still waiting after ${elapsed}s...`);
+  }, 5000);
+
+  logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
+
+  let result = '';
+  try {
+    const q = query({ prompt, options });
+
+    for await (const msg of q) {
+      if (msg.type === 'system' && msg.subtype === 'init') {
+        onSessionId(msg.session_id);
+      }
+      if (msg.type === 'result') {
+        logger.info(
+          `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
+        );
+        if (msg.subtype === 'success') {
+          result = msg.result;
+        }
+      }
+    }
+  } finally {
+    clearInterval(timer);
+  }
+
+  const elapsed = Math.round((Date.now() - startTime) / 1000);
+  logger.info(`Response (${elapsed}s): ${result}`);
+
+  return result;
+}
+
+function saveDiscordSession(id: string): void {
+  discordSessionId = id;
+  writeFileSync(DISCORD_SESSION_FILE, id);
+}
+
+function saveDirectSession(id: string): void {
+  directSessionId = id;
+  writeFileSync(DIRECT_SESSION_FILE, id);
+}
+
+export async function compactSession(): Promise<void> {
+  if (!discordSessionId) {
+    logger.warn('No session to compact');
+    return;
+  }
+
+  logger.info(`Compacting session ${discordSessionId}...`);
+
+  const options = {
+    pathToClaudeCodeExecutable: claudePath,
+    model: 'claude-opus-4-6',
+    allowedTools: [] as string[],
+    maxTurns: 1,
+    resume: discordSessionId,
+  } satisfies Options;
+
+  const result = await executeQuery('/compact', options, saveDiscordSession);
+
+  writeFileSync(COMPACT_FILE, result);
+  logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
+}
+
+export async function resetSession(
+  channel: TextChannel,
+  systemPrompt: string,
+  sandboxConfig: SandboxConfig,
+): Promise<void> {
+  logger.info('Resetting Discord session...');
+
+  // Delete old session
+  if (existsSync(DISCORD_SESSION_FILE)) {
+    unlinkSync(DISCORD_SESSION_FILE);
+  }
+  discordSessionId = undefined;
+
+  // Fetch recent message history from the channel
+  const messages: Message[] = [];
+  let lastId: string | undefined;
+
+  for (let i = 0; i < 5; i++) {
+    const fetched: Collection<string, Message> = await channel.messages.fetch({
+      limit: 100,
+      ...(lastId ? { before: lastId } : {}),
+    });
+    if (fetched.size === 0) break;
+    messages.push(...fetched.values());
+    lastId = fetched.last()?.id;
+    if (fetched.size < 100) break;
+  }
+
+  // Reverse to chronological order
+  messages.reverse();
+
+  logger.info(`Fetched ${messages.length} messages for session seeding`);
+
+  if (messages.length === 0) {
+    logger.warn('No messages found to seed session');
+    return;
+  }
+
+  // Format messages as text, normalising bot display names to current username
+  const botUsername = channel.client.user?.username ?? 'Claude';
+  const history = messages
+    .map((m) => {
+      const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
+      const displayName = m.author.bot ? botUsername : m.author.displayName;
+      const prefix = m.author.bot ? '[BOT] ' : '';
+      return `${prefix}[${zdt.format(timestampFormatter)}] ${displayName} (${m.author.id}): ${m.content}`;
+    })
+    .join('\n');
+
+  const seedPrompt = `system: The following is the recent message history from the Discord channel. Internalize this context — these are the users you've been chatting with and the conversations you've had. Do not respond to these messages, just acknowledge that you have received the context.\n\n${history}`;
+
+  const options = buildQueryOptions({
+    systemPrompt: 'You are a helpful assistant in a Discord group chat. You are being given recent message history for context. Do not respond to these messages, just acknowledge that you have received the context.',
+    allowedTools: [],
+    maxTurns: 1,
+    sandboxConfig,
+    sessionId: undefined,
+  });
+
+  const result = await executeQuery(seedPrompt, options, saveDiscordSession);
+  logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
+}
 
 export function buildSystemPrompt(botUserId: string | undefined, botUsername: string | undefined): string {
   return `You are a helpful assistant in a Discord group chat.
@@ -69,7 +250,7 @@ function buildContentBlocks(messages: Message[]): ContentBlockParam[] {
     const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
     blocks.push({
       type: 'text',
-      text: `[${zdt.toString()}] ${m.author.displayName} (${m.author.id}): ${m.content}`,
+      text: `[${zdt.format(timestampFormatter)}] ${m.author.displayName} (${m.author.id}): ${m.content}`,
     });
 
     for (const attachment of m.attachments.values()) {
@@ -93,55 +274,40 @@ function buildContentBlocks(messages: Message[]): ContentBlockParam[] {
   return blocks;
 }
 
+export async function directQuery(
+  prompt: string,
+  sandboxConfig: SandboxConfig,
+): Promise<string> {
+  const options = buildQueryOptions({
+    systemPrompt: 'You are a helpful assistant. Respond directly and concisely in plain text.',
+    allowedTools: ['WebSearch', 'WebFetch'],
+    maxTurns: 25,
+    sandboxConfig,
+    sessionId: directSessionId,
+  });
+
+  return executeQuery(prompt, options, saveDirectSession);
+}
+
 export async function sendUnprompted(
   prompt: string,
   channel: TextChannel,
   systemPrompt: string,
+  sandboxConfig: SandboxConfig,
 ): Promise<void> {
   try {
     await channel.sendTyping();
     logger.info(`Unprompted: ${prompt}`);
 
-    const startTime = Date.now();
-    const timer = setInterval(() => {
-      const elapsed = Math.round((Date.now() - startTime) / 1000);
-      logger.debug(`Still waiting after ${elapsed}s...`);
-    }, 5000);
+    const options = buildQueryOptions({
+      systemPrompt,
+      allowedTools: [],
+      maxTurns: 1,
+      sandboxConfig,
+      sessionId: discordSessionId,
+    });
 
-    let result = '';
-    try {
-      const q = query({
-        prompt,
-        options: {
-          pathToClaudeCodeExecutable: '/home/stephen/.local/bin/claude',
-          model: 'claude-opus-4-6',
-          allowedTools: [],
-          maxTurns: 1,
-          systemPrompt,
-          ...(sessionId ? { resume: sessionId } : {}),
-        },
-      });
-
-      for await (const msg of q) {
-        if (msg.type === 'system' && msg.subtype === 'init') {
-          sessionId = msg.session_id;
-          writeFileSync(SESSION_FILE, sessionId);
-        }
-        if (msg.type === 'result') {
-          logger.info(
-            `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
-          );
-          if (msg.subtype === 'success') {
-            result = msg.result;
-          }
-        }
-      }
-    } finally {
-      clearInterval(timer);
-    }
-
-    const elapsed = Math.round((Date.now() - startTime) / 1000);
-    logger.info(`Response (${elapsed}s): ${result}`);
+    const result = await executeQuery(prompt, options, saveDiscordSession);
 
     if (!result) {
       logger.warn('Empty unprompted response');
@@ -160,7 +326,7 @@ export async function sendUnprompted(
     }
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
-    sessionId = undefined;
+    discordSessionId = undefined;
   }
 }
 
@@ -168,6 +334,7 @@ export async function respondToMessages(
   messages: Message[],
   channel: TextChannel,
   systemPrompt: string,
+  sandboxConfig: SandboxConfig,
 ): Promise<void> {
   try {
     await channel.sendTyping();
@@ -190,51 +357,20 @@ export async function respondToMessages(
               content: contentBlocks,
             },
             parent_tool_use_id: null,
-            session_id: sessionId ?? '',
+            session_id: discordSessionId ?? '',
           } satisfies SDKUserMessage;
         })()
       : promptText;
 
-    const startTime = Date.now();
-    const timer = setInterval(() => {
-      const elapsed = Math.round((Date.now() - startTime) / 1000);
-      logger.debug(`Still waiting after ${elapsed}s...`);
-    }, 5000);
+    const options = buildQueryOptions({
+      systemPrompt,
+      allowedTools: ['WebSearch', 'WebFetch'],
+      maxTurns: 25,
+      sandboxConfig,
+      sessionId: discordSessionId,
+    });
 
-    let result = '';
-    try {
-      const q = query({
-        prompt,
-        options: {
-          pathToClaudeCodeExecutable: '/home/stephen/.local/bin/claude',
-          model: 'claude-opus-4-6',
-          allowedTools: ['WebSearch', 'WebFetch'],
-          maxTurns: 3,
-          systemPrompt,
-          ...(sessionId ? { resume: sessionId } : {}),
-        },
-      });
-
-      for await (const msg of q) {
-        if (msg.type === 'system' && msg.subtype === 'init') {
-          sessionId = msg.session_id;
-          writeFileSync(SESSION_FILE, sessionId);
-        }
-        if (msg.type === 'result') {
-          logger.info(
-            `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
-          );
-          if (msg.subtype === 'success') {
-            result = msg.result;
-          }
-        }
-      }
-    } finally {
-      clearInterval(timer);
-    }
-
-    const elapsed = Math.round((Date.now() - startTime) / 1000);
-    logger.info(`Response (${elapsed}s): ${result}`);
+    const result = await executeQuery(prompt, options, saveDiscordSession);
 
     if (!result) {
       logger.warn('Empty response from Claude');
@@ -271,7 +407,7 @@ export async function respondToMessages(
     }
   } catch (error) {
     logger.error(`Error processing message: ${error}`);
-    sessionId = undefined;
+    discordSessionId = undefined;
     await channel.send('Sorry, I encountered an error processing your message.');
   }
 }

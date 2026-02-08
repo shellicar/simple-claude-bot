@@ -10,11 +10,14 @@
     "start:watch": "node --env-file=.env --watch-path=dist .",
     "dev": "tsx build.ts && pnpm build:watch & pnpm start:watch",
     "setup": "node --env-file=.env dist/setup.js",
-    "verify": "node --env-file=.env dist/verify.js"
+    "verify": "node --env-file=.env dist/verify.js",
+    "docker:build": "pnpm build && docker build -t simple-claude-bot .",
+    "docker:run": "docker run -it --init --env-file .env -v ~/.claude-bot:/home/bot/.claude simple-claude-bot"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.37",
     "@js-joda/core": "^5.7.0",
+    "@js-joda/locale_en": "^4.15.3",
     "@js-joda/timezone": "^2.23.0",
     "discord.js": "^14.25.1",
     "winston": "^3.19.0",

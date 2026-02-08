@@ -1,6 +1,7 @@
 .env
 .bot.lock
-.bot.session
+.bot.*session
 conversation.json
 dist/
 node_modules/
+sandbox/

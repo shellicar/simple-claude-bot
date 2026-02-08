@@ -14,7 +14,7 @@ A minimal Discord bot that provides Claude AI chat in a dedicated channel using 
 - Startup greeting on fresh starts
 - Stdin commands (`/shutdown`, `/prompt`)
 - Graceful shutdown on SIGINT/SIGTERM
-- No shell or system commands - security by design
+- Optional sandboxed file access with SDK isolation
 
 ## Setup
 
@@ -88,6 +88,8 @@ pnpm start
 | `DISCORD_TOKEN` | Yes | — | Discord bot token |
 | `CLAUDE_CHANNEL` | No | `claude` | Channel name to respond in |
 | `DISCORD_GUILD` | Yes | — | Guild ID to restrict the bot to |
+| `SANDBOX_ENABLED` | No | `false` | Enable sandboxed file access (Bash, Read, Write, Edit, Glob, Grep) |
+| `SANDBOX_DIR` | No | `./sandbox` | Directory for sandboxed file operations |
 
 ## Usage
 
