@@ -18,7 +18,7 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: Message[] = [];
 
-  const { CLAUDE_CHANNEL } = botSchema.parse(env);
+  const { CLAUDE_CHANNEL, DISCORD_GUILD } = botSchema.parse(env);
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
@@ -26,14 +26,15 @@ const main = async () => {
 
   const findChannel = (): TextChannel | undefined => {
     return client.channels.cache.find(
-      (ch): ch is TextChannel => ch instanceof TextChannel && ch.name === CLAUDE_CHANNEL,
+      (ch): ch is TextChannel =>
+        ch instanceof TextChannel && ch.guild.id === DISCORD_GUILD && ch.name === CLAUDE_CHANNEL,
     );
   };
 
   const processQueue = async (channel: TextChannel) => {
     while (messageQueue.length > 0) {
       const batch = messageQueue.splice(0);
-      await respondToMessages(batch, channel, systemPrompt ?? buildSystemPrompt(undefined));
+      await respondToMessages(batch, channel, systemPrompt ?? buildSystemPrompt(undefined, undefined));
     }
   };
 
@@ -49,13 +50,19 @@ const main = async () => {
 
   client.once('ready', async () => {
     const botUserId = client.user?.id;
-    systemPrompt = buildSystemPrompt(botUserId);
+    const botUsername = client.user?.username;
+    systemPrompt = buildSystemPrompt(botUserId, botUsername);
     logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
     logger.info(`Listening for messages in #${CLAUDE_CHANNEL}`);
     logger.debug(`System prompt: ${systemPrompt}`);
     botChannel = findChannel();
-    if (botChannel && freshStart) {
-      await botChannel.send('Hello! I\'m online and ready to chat.');
+    if (botChannel) {
+      logger.info(`Found channel #${botChannel.name} in guild ${botChannel.guild.name} (${botChannel.guild.id})`);
+      if (freshStart) {
+        await botChannel.send('Hello! I\'m online and ready to chat.');
+      }
+    } else {
+      logger.warn(`Channel #${CLAUDE_CHANNEL} not found in guild ${DISCORD_GUILD}`);
     }
   });
 
@@ -65,7 +72,11 @@ const main = async () => {
     }
 
     const channel = message.channel;
-    if (!(channel instanceof TextChannel) || channel.name !== CLAUDE_CHANNEL) {
+    if (
+      !(channel instanceof TextChannel) ||
+      channel.guild.id !== DISCORD_GUILD ||
+      channel.name !== CLAUDE_CHANNEL
+    ) {
       return;
     }
 
@@ -111,7 +122,7 @@ const main = async () => {
       sendUnprompted(
         'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.',
         botChannel,
-        systemPrompt ?? buildSystemPrompt(undefined),
+        systemPrompt ?? buildSystemPrompt(undefined, undefined),
       );
       return;
     }

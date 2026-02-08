@@ -19,11 +19,12 @@ let sessionId: string | undefined = existsSync(SESSION_FILE)
   ? readFileSync(SESSION_FILE, 'utf-8').trim() || undefined
   : undefined;
 
-export function buildSystemPrompt(botUserId: string | undefined): string {
+export function buildSystemPrompt(botUserId: string | undefined, botUsername: string | undefined): string {
   return `You are a helpful assistant in a Discord group chat.
 Messages will be formatted as "[timestamp] username (userId): message". The username is their display name and the userId in parentheses is their unique identifier. Users may change their display name, so always use the userId for replyTo.
 Images attached to messages will be included inline for you to see.
 ${botUserId ? `Your Discord user ID is ${botUserId}. When users mention you with <@${botUserId}>, they are talking to you.` : ''}
+${botUsername ? `Your Discord username is "${botUsername}". Users may address you by name instead of mentioning you.` : ''}
 
 You MUST always respond using the following template format. Each reply is a block separated by ---. You may send one or more replies.
 
@@ -126,8 +127,13 @@ export async function sendUnprompted(
           sessionId = msg.session_id;
           writeFileSync(SESSION_FILE, sessionId);
         }
-        if (msg.type === 'result' && msg.subtype === 'success') {
-          result = msg.result;
+        if (msg.type === 'result') {
+          logger.info(
+            `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
+          );
+          if (msg.subtype === 'success') {
+            result = msg.result;
+          }
         }
       }
     } finally {
@@ -214,8 +220,13 @@ export async function respondToMessages(
           sessionId = msg.session_id;
           writeFileSync(SESSION_FILE, sessionId);
         }
-        if (msg.type === 'result' && msg.subtype === 'success') {
-          result = msg.result;
+        if (msg.type === 'result') {
+          logger.info(
+            `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
+          );
+          if (msg.subtype === 'success') {
+            result = msg.result;
+          }
         }
       }
     } finally {

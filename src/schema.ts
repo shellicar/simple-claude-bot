@@ -6,4 +6,5 @@ export const discordSchema = z.object({
 
 export const botSchema = z.object({
   CLAUDE_CHANNEL: z.string().min(1).default('claude'),
+  DISCORD_GUILD: z.string().min(1),
 });
