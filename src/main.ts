@@ -2,13 +2,14 @@ import { Message, TextChannel } from 'discord.js';
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { env } from 'node:process';
 import { botSchema, discordSchema } from './schema.js';
-import { respondToMessages } from './respondToMessage.js';
+import { buildSystemPrompt, respondToMessages } from './respondToMessage.js';
 import { createDiscordClient } from './createDiscordClient.js';
+import { logger } from './logger.js';
 
 const LOCK_FILE = '.bot.lock';
 
 const main = async () => {
-  console.log('Starting simple-claude-bot...');
+  logger.info('Starting simple-claude-bot...');
 
   const freshStart = !existsSync(LOCK_FILE);
   writeFileSync(LOCK_FILE, String(process.pid));
@@ -20,6 +21,7 @@ const main = async () => {
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
+  let systemPrompt: string | undefined;
 
   const findChannel = (): TextChannel | undefined => {
     return client.channels.cache.find(
@@ -30,14 +32,14 @@ const main = async () => {
   const processQueue = async (channel: TextChannel) => {
     while (messageQueue.length > 0) {
       const batch = messageQueue.splice(0);
-      await respondToMessages(batch, channel);
+      await respondToMessages(batch, channel, systemPrompt ?? buildSystemPrompt(undefined));
     }
   };
 
   const shutdown = async (signal: string) => {
-    console.log(`Received ${signal}, shutting down...`);
+    logger.info(`Received ${signal}, shutting down...`);
     client.destroy();
-    console.log('Shutdown complete.');
+    logger.info('Shutdown complete.');
     process.exit(0);
   };
 
@@ -45,8 +47,11 @@ const main = async () => {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   client.once('ready', async () => {
-    console.log(`Logged in as ${client.user?.tag}`);
-    console.log(`Listening for messages in #${CLAUDE_CHANNEL}`);
+    const botUserId = client.user?.id;
+    systemPrompt = buildSystemPrompt(botUserId);
+    logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
+    logger.info(`Listening for messages in #${CLAUDE_CHANNEL}`);
+    logger.debug(`System prompt: ${systemPrompt}`);
     botChannel = findChannel();
     if (botChannel && freshStart) {
       await botChannel.send('Hello! I\'m online and ready to chat.');
@@ -64,7 +69,7 @@ const main = async () => {
     }
 
     if (message.content === '/shutdown') {
-      console.log('Shutdown command received');
+      logger.info('Shutdown command received');
       if (botChannel) {
         await botChannel.send('Goodbye! I\'m going offline now.');
       }
@@ -73,7 +78,7 @@ const main = async () => {
       process.exit(0);
     }
 
-    console.log(`${message.author.displayName}: ${message.content}`);
+    logger.info(`${message.author.displayName}: ${message.content}`);
     messageQueue.push(message);
 
     if (processing) {
