@@ -1,7 +1,6 @@
 import { query, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { Collection, Message, TextChannel } from 'discord.js';
@@ -12,6 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { chunkMessage } from './chunkMessage.js';
 import { logger } from './logger.js';
 import { parseResponse } from './parseResponse.js';
+import { buildSystemPrompt } from './systemPrompts.js';
 
 const claudePath = process.env.CLAUDE_PATH ?? execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim();
 
@@ -27,17 +27,26 @@ const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'im
 const zone = ZoneId.systemDefault();
 const timestampFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy 'at' HH:mm:ss VV (xxx)").withLocale(Locale.ENGLISH);
 
-const claudeDir = join(homedir(), '.claude');
-const DISCORD_SESSION_FILE = join(claudeDir, '.bot.session');
-const DIRECT_SESSION_FILE = join(claudeDir, '.bot.direct-session');
-const COMPACT_FILE = join(claudeDir, '.bot.compact');
+let claudeDir: string;
+let DISCORD_SESSION_FILE: string;
+let DIRECT_SESSION_FILE: string;
+let COMPACT_FILE: string;
+
+export function initSessionPaths(configDir: string): void {
+  claudeDir = configDir;
+  DISCORD_SESSION_FILE = join(claudeDir, '.bot.session');
+  DIRECT_SESSION_FILE = join(claudeDir, '.bot.direct-session');
+  COMPACT_FILE = join(claudeDir, '.bot.compact');
+  discordSessionId = loadSessionId(DISCORD_SESSION_FILE);
+  directSessionId = loadSessionId(DIRECT_SESSION_FILE);
+}
 
 function loadSessionId(file: string): string | undefined {
   return existsSync(file) ? readFileSync(file, 'utf-8').trim() || undefined : undefined;
 }
 
-let discordSessionId = loadSessionId(DISCORD_SESSION_FILE);
-let directSessionId = loadSessionId(DIRECT_SESSION_FILE);
+let discordSessionId: string | undefined;
+let directSessionId: string | undefined;
 
 function buildQueryOptions(params: {
   systemPrompt: string;
@@ -55,9 +64,7 @@ function buildQueryOptions(params: {
     cwd: sandboxConfig.directory,
     allowedTools: sandboxEnabled ? [...allowedTools, ...SANDBOX_TOOLS] : allowedTools,
     maxTurns: sandboxEnabled && maxTurns < 3 ? 3 : maxTurns,
-    systemPrompt: sandboxEnabled
-      ? `${systemPrompt}\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details.`
-      : systemPrompt,
+    systemPrompt,
     ...(sandboxEnabled
       ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }
       : {}),
@@ -83,6 +90,7 @@ async function executeQuery(
     const q = query({ prompt, options });
 
     for await (const msg of q) {
+      logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
       if (msg.type === 'system' && msg.subtype === 'init') {
         onSessionId(msg.session_id);
       }
@@ -92,8 +100,16 @@ async function executeQuery(
         );
         if (msg.subtype === 'success') {
           result = msg.result;
+        } else {
+          logger.error(`SDK result failure: ${JSON.stringify(msg)}`);
         }
       }
+    }
+  } catch (error) {
+    if (result) {
+      logger.warn(`SDK process error after successful result: ${error}`);
+    } else {
+      throw error;
     }
   } finally {
     clearInterval(timer);
@@ -189,7 +205,7 @@ export async function resetSession(
   const seedPrompt = `system: The following is the recent message history from the Discord channel. Internalize this context — these are the users you've been chatting with and the conversations you've had. Do not respond to these messages, just acknowledge that you have received the context.\n\n${history}`;
 
   const options = buildQueryOptions({
-    systemPrompt: 'You are a helpful assistant in a Discord group chat. You are being given recent message history for context. Do not respond to these messages, just acknowledge that you have received the context.',
+    systemPrompt: buildSystemPrompt({ type: 'reset' }),
     allowedTools: [],
     maxTurns: 1,
     sandboxConfig,
@@ -200,48 +216,6 @@ export async function resetSession(
   logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
 }
 
-export function buildSystemPrompt(botUserId: string | undefined, botUsername: string | undefined): string {
-  return `You are a helpful assistant in a Discord group chat.
-Messages will be formatted as "[timestamp] username (userId): message". The username is their display name and the userId in parentheses is their unique identifier. Users may change their display name, so always use the userId for replyTo.
-Images attached to messages will be included inline for you to see.
-${botUserId ? `Your Discord user ID is ${botUserId}. When users mention you with <@${botUserId}>, they are talking to you.` : ''}
-${botUsername ? `Your Discord username is "${botUsername}". Users may address you by name instead of mentioning you.` : ''}
-
-You MUST always respond using the following template format. Each reply is a block separated by ---. You may send one or more replies.
-
----
-replyTo: userId
-ping: false
-message: Your message here
----
-
-Fields:
-- replyTo (optional): The userId to reply to. Must be the userId (not the display name). If omitted, the message is sent to the channel without replying to anyone.
-- ping (optional): Whether to ping/notify the user. Defaults to false. Only takes effect when replyTo is set. Use sparingly - only ping when the user needs to be notified (e.g. answering their direct question). Don't ping for casual conversation or follow-ups.
-- delay (optional): Milliseconds to wait after the previous message before sending this one. If omitted, send immediately.
-- message (required): The content of your reply. Can be multiple lines. Use the person's display name when addressing them, not their userId.
-
-Example with multiple replies:
----
-replyTo: 123456789
-ping: true
-message: Hey Alice, great question! The answer is 42.
----
-delay: 1000
-replyTo: 987654321
-ping: false
-message: Bob, I think you're right about that.
----
-delay: 500
-message: Hope that helps everyone!
----
-
-Rules:
-- Always use this template, even for a single reply.
-- You decide how many replies to send and whether to use delays.
-- delay is the number of milliseconds to wait after the previous message before sending this one.
-- Not every message needs a reply. If no reply is needed, respond with just --- and nothing else.`;
-}
 
 function buildContentBlocks(messages: Message[]): ContentBlockParam[] {
   const blocks: ContentBlockParam[] = [];
@@ -279,7 +253,7 @@ export async function directQuery(
   sandboxConfig: SandboxConfig,
 ): Promise<string> {
   const options = buildQueryOptions({
-    systemPrompt: 'You are a helpful assistant. Respond directly and concisely in plain text.',
+    systemPrompt: buildSystemPrompt({ type: 'direct' }),
     allowedTools: ['WebSearch', 'WebFetch'],
     maxTurns: 25,
     sandboxConfig,

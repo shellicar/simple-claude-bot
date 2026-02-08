@@ -5,14 +5,15 @@ import { createInterface } from 'node:readline';
 import { env } from 'node:process';
 import { botSchema, discordSchema } from './schema.js';
 import {
-  buildSystemPrompt,
   compactSession,
   directQuery,
+  initSessionPaths,
   resetSession,
   respondToMessages,
   sendUnprompted,
   type SandboxConfig,
 } from './respondToMessage.js';
+import { buildSystemPrompt } from './systemPrompts.js';
 import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
 
@@ -22,7 +23,9 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: Message[] = [];
 
-  const { CLAUDE_CHANNEL, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR } = botSchema.parse(env);
+  const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR } = botSchema.parse(env);
+
+  initSessionPaths(CLAUDE_CONFIG_DIR);
 
   const sandboxConfig: SandboxConfig = {
     enabled: SANDBOX_ENABLED === 'true',
@@ -34,7 +37,7 @@ const main = async () => {
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
-  let systemPrompt = buildSystemPrompt(undefined, undefined);
+  let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled });
 
   const findChannel = (): TextChannel | undefined => {
     return client.channels.cache.find(
@@ -63,7 +66,7 @@ const main = async () => {
   client.once('ready', async () => {
     const botUserId = client.user?.id;
     const botUsername = client.user?.username;
-    systemPrompt = buildSystemPrompt(botUserId, botUsername);
+    systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId, botUsername });
     logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
     logger.info(`Listening for messages in #${CLAUDE_CHANNEL}`);
     logger.debug(`System prompt: ${systemPrompt}`);

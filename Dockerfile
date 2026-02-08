@@ -1,14 +1,18 @@
 FROM node:22-slim
 
-# Install sandbox dependencies and Claude Code
+# Install sandbox dependencies, git, gh CLI, and Claude Code
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bubblewrap socat curl \
+  && apt-get install -y --no-install-recommends bubblewrap socat curl git ca-certificates gpg \
+  && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends gh \
   && npm install -g @anthropic-ai/claude-code \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -s /bin/bash bot
+# Create non-root user matching host uid for volume permissions
+RUN useradd -m -s /bin/bash -u 1000 -o bot
 
 # Enable pnpm
 RUN corepack enable pnpm
@@ -22,12 +26,14 @@ RUN pnpm install --frozen-lockfile
 # Copy built output
 COPY dist/ dist/
 
-# Set ownership for writable directories
-RUN mkdir -p /app/sandbox && chown bot:bot /app /app/sandbox
+# Lock down app files and create Claude wrapper that drops to bot user
+RUN chmod -R 750 /app \
+  && printf '#!/bin/sh\nexport HOME=/home/bot\nexec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"\n' > /usr/local/bin/claude-sandbox \
+  && chmod +x /usr/local/bin/claude-sandbox
 
-USER bot
-
-ENV SANDBOX_DIR=/app/sandbox
+ENV SANDBOX_DIR=/sandbox
 ENV SANDBOX_ENABLED=true
+ENV CLAUDE_PATH=/usr/local/bin/claude-sandbox
+ENV CLAUDE_CONFIG_DIR=/home/bot/.claude
 
 CMD ["node", "."]
