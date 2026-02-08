@@ -1,5 +1,6 @@
 interface ParsedReply {
   replyTo?: string;
+  ping?: boolean;
   delay?: number;
   message: string;
 }
@@ -10,6 +11,7 @@ export function parseResponse(raw: string): ParsedReply[] {
   return blocks.map((block) => {
     const lines = block.trim().split('\n');
     let replyTo: string | undefined;
+    let ping: boolean | undefined;
     let delay: number | undefined;
     const messageLines: string[] = [];
     let inMessage = false;
@@ -17,6 +19,8 @@ export function parseResponse(raw: string): ParsedReply[] {
     for (const line of lines) {
       if (!inMessage && line.startsWith('replyTo:')) {
         replyTo = line.slice('replyTo:'.length).trim();
+      } else if (!inMessage && line.startsWith('ping:')) {
+        ping = line.slice('ping:'.length).trim().toLowerCase() === 'true';
       } else if (!inMessage && line.startsWith('delay:')) {
         const parsed = Number(line.slice('delay:'.length).trim());
         if (!Number.isNaN(parsed) && parsed > 0) {
@@ -35,6 +39,7 @@ export function parseResponse(raw: string): ParsedReply[] {
 
     return {
       replyTo,
+      ping,
       delay,
       message: messageLines.join('\n').trim(),
     } satisfies ParsedReply;

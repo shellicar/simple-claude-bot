@@ -1,8 +1,9 @@
 import { Message, TextChannel } from 'discord.js';
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { env } from 'node:process';
 import { botSchema, discordSchema } from './schema.js';
-import { buildSystemPrompt, respondToMessages } from './respondToMessage.js';
+import { buildSystemPrompt, respondToMessages, sendUnprompted } from './respondToMessage.js';
 import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
 
@@ -68,16 +69,6 @@ const main = async () => {
       return;
     }
 
-    if (message.content === '/shutdown') {
-      logger.info('Shutdown command received');
-      if (botChannel) {
-        await botChannel.send('Goodbye! I\'m going offline now.');
-      }
-      unlinkSync(LOCK_FILE);
-      client.destroy();
-      process.exit(0);
-    }
-
     logger.info(`${message.author.displayName}: ${message.content}`);
     messageQueue.push(message);
 
@@ -88,6 +79,44 @@ const main = async () => {
     processing = processQueue(channel).finally(() => {
       processing = undefined;
     });
+  });
+
+  const rl = createInterface({ input: process.stdin });
+  rl.on('line', (line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    if (trimmed === '/shutdown') {
+      logger.info('Shutdown command received');
+      if (botChannel) {
+        botChannel.send('Goodbye! I\'m going offline now.').finally(() => {
+          unlinkSync(LOCK_FILE);
+          client.destroy();
+          process.exit(0);
+        });
+      } else {
+        unlinkSync(LOCK_FILE);
+        client.destroy();
+        process.exit(0);
+      }
+      return;
+    }
+
+    if (trimmed === '/prompt') {
+      if (!botChannel) {
+        logger.warn('Bot channel not found yet');
+        return;
+      }
+      logger.info('Prompt command received');
+      sendUnprompted(
+        'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.',
+        botChannel,
+        systemPrompt ?? buildSystemPrompt(undefined),
+      );
+      return;
+    }
+
+    logger.warn(`Unknown command: ${trimmed}`);
   });
 
   const { DISCORD_TOKEN } = discordSchema.parse(env);
