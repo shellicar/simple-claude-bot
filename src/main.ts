@@ -8,6 +8,8 @@ import { createClaudeClient } from './createClaudeClient.js';
 import { ConversationState } from './ConversationState.js';
 
 const main = async () => {
+  console.log('Starting simple-claude-bot...');
+
   let processing: Promise<void> | undefined;
   const state = ConversationState.load();
 
@@ -15,10 +17,34 @@ const main = async () => {
   const claude = createClaudeClient(ANTHROPIC_API_KEY);
 
   const client = createDiscordClient();
+  let botChannel: TextChannel | undefined;
 
-  client.once('ready', () => {
+  const findChannel = (): TextChannel | undefined => {
+    return client.channels.cache.find(
+      (ch): ch is TextChannel => ch instanceof TextChannel && ch.name === CLAUDE_CHANNEL,
+    );
+  };
+
+  const shutdown = async (signal: string) => {
+    console.log(`Received ${signal}, shutting down...`);
+    if (botChannel) {
+      await botChannel.send('Goodbye! I\'m going offline now.').catch(() => {});
+    }
+    client.destroy();
+    console.log('Shutdown complete.');
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+  client.once('ready', async () => {
     console.log(`Logged in as ${client.user?.tag}`);
     console.log(`Listening for messages in #${CLAUDE_CHANNEL}`);
+    botChannel = findChannel();
+    if (botChannel) {
+      await botChannel.send('Hello! I\'m online and ready to chat.');
+    }
   });
 
   client.on('messageCreate', async (message: Message) => {
