@@ -9,7 +9,7 @@ import { ConversationState } from './ConversationState.js';
 
 const main = async () => {
   let processing: Promise<void> | undefined;
-  const state = new ConversationState();
+  const state = ConversationState.load();
 
   const { ANTHROPIC_API_KEY, CLAUDE_CHANNEL } = claudeSchema.parse(env);
   const claude = createClaudeClient(ANTHROPIC_API_KEY);
@@ -30,6 +30,9 @@ const main = async () => {
     if (!(channel instanceof TextChannel) || channel.name !== CLAUDE_CHANNEL) {
       return;
     }
+
+    console.log(`${message.author.displayName}: ${message.content}`);
+    state.addUserMessage(`${message.author.displayName}: ${message.content}`);
 
     const stillBusy = await isBusy(processing);
     if (stillBusy) {

@@ -15,9 +15,6 @@ Messages will be formatted as "username: message".
 The username before the colon is who is speaking to you. 
 Treat it as metadata, not as part of their message.`;
 
-    console.log(`${message.author.displayName}: ${message.content}`);
-    state.addUserMessage(`${message.author.displayName}: ${message.content}`);
-
     await channel.sendTyping();
 
     const response = await anthropic.messages.create({
