@@ -1,9 +1,8 @@
 import { Message, TextChannel } from 'discord.js';
 import { existsSync, unlinkSync, writeFileSync } from 'node:fs';
 import { env } from 'node:process';
-import { isBusy } from './isBusy.js';
 import { botSchema, discordSchema } from './schema.js';
-import { respondToMessage } from './respondToMessage.js';
+import { respondToMessages } from './respondToMessage.js';
 import { createDiscordClient } from './createDiscordClient.js';
 
 const LOCK_FILE = '.bot.lock';
@@ -15,6 +14,7 @@ const main = async () => {
   writeFileSync(LOCK_FILE, String(process.pid));
 
   let processing: Promise<void> | undefined;
+  const messageQueue: Message[] = [];
 
   const { CLAUDE_CHANNEL } = botSchema.parse(env);
 
@@ -25,6 +25,13 @@ const main = async () => {
     return client.channels.cache.find(
       (ch): ch is TextChannel => ch instanceof TextChannel && ch.name === CLAUDE_CHANNEL,
     );
+  };
+
+  const processQueue = async (channel: TextChannel) => {
+    while (messageQueue.length > 0) {
+      const batch = messageQueue.splice(0);
+      await respondToMessages(batch, channel);
+    }
   };
 
   const shutdown = async (signal: string) => {
@@ -67,13 +74,15 @@ const main = async () => {
     }
 
     console.log(`${message.author.displayName}: ${message.content}`);
+    messageQueue.push(message);
 
-    const stillBusy = await isBusy(processing);
-    if (stillBusy) {
-      await message.react('\u23F3');
-    } else {
-      processing = respondToMessage(message, channel);
+    if (processing) {
+      return;
     }
+
+    processing = processQueue(channel).finally(() => {
+      processing = undefined;
+    });
   });
 
   const { DISCORD_TOKEN } = discordSchema.parse(env);
