@@ -12,4 +12,5 @@ export const botSchema = z.object({
   DISCORD_GUILD: z.string().min(1),
   SANDBOX_ENABLED: z.string().default('false'),
   SANDBOX_DIR: z.string().default('./sandbox'),
+  BOT_ALIASES: z.string().default(''),
 });

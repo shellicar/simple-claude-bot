@@ -26,14 +26,24 @@ RUN pnpm install --frozen-lockfile
 # Copy built output
 COPY dist/ dist/
 
+# Copy Claude settings and hooks to staging (volume mount overlays /home/bot/.claude at runtime)
+COPY claude-home/ /opt/claude-home/
+
 # Lock down app files and create Claude wrapper that drops to bot user
 RUN chmod -R 750 /app \
-  && printf '#!/bin/sh\nexport HOME=/home/bot\nexec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"\n' > /usr/local/bin/claude-sandbox \
+  && chmod +x /opt/claude-home/hooks/*.sh \
+  && printf '#!/bin/sh\nexport HOME=/home/bot\nunset DISCORD_TOKEN\nunset DISCORD_GUILD\nexec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"\n' > /usr/local/bin/claude-sandbox \
   && chmod +x /usr/local/bin/claude-sandbox
 
+# Entrypoint copies Claude settings into the mounted volume, then runs the app
+RUN printf '#!/bin/sh\ncp -r /opt/claude-home/* /home/bot/.claude/\nchown -R bot:bot /home/bot/.claude/hooks /home/bot/.claude/settings.json 2>/dev/null\nexec "$@"\n' > /usr/local/bin/entrypoint.sh \
+  && chmod +x /usr/local/bin/entrypoint.sh
+
+ENV TZ=Australia/Melbourne
 ENV SANDBOX_DIR=/sandbox
 ENV SANDBOX_ENABLED=true
 ENV CLAUDE_PATH=/usr/local/bin/claude-sandbox
 ENV CLAUDE_CONFIG_DIR=/home/bot/.claude
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["node", "."]

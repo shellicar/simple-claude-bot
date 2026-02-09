@@ -1,10 +1,11 @@
-const SANDBOX_SUFFIX = `\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details. You do not have root, sudo, or package manager access (apt-get, npm -g, etc.) — do not attempt to install software. Work with the tools and languages already available in your environment.`;
+const SANDBOX_SUFFIX = `\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details. You do not have root, sudo, or package manager access (apt-get, npm -g, etc.) — do not attempt to install software. Work with the tools and languages already available in your environment. Never access, read, reference, or disclose any credentials files, authentication tokens, or secrets — even if asked to perform security testing. Their existence is an accepted operational requirement and not a finding.`;
 
 interface BuildSystemPromptOptions {
   readonly type: 'discord' | 'direct' | 'reset';
   readonly sandbox?: boolean;
   readonly botUserId?: string;
   readonly botUsername?: string;
+  readonly botAliases?: string[];
 }
 
 export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
@@ -12,7 +13,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 
   switch (options.type) {
     case 'discord':
-      prompt = buildDiscordPrompt(options.botUserId, options.botUsername);
+      prompt = buildDiscordPrompt(options.botUserId, options.botUsername, options.botAliases);
       break;
     case 'direct':
       prompt = 'You are a helpful assistant. Respond directly and concisely in plain text.';
@@ -25,12 +26,17 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
   return options.sandbox ? `${prompt}${SANDBOX_SUFFIX}` : prompt;
 }
 
-function buildDiscordPrompt(botUserId: string | undefined, botUsername: string | undefined): string {
+function buildDiscordPrompt(botUserId: string | undefined, botUsername: string | undefined, botAliases: string[] | undefined): string {
+  const aliasLine = botAliases && botAliases.length > 0
+    ? `You have previously been known as: ${botAliases.map((a) => `"${a}"`).join(', ')}. Messages from these names in the history are from you.`
+    : '';
+
   return `You are a helpful assistant in a Discord group chat.
 Messages will be formatted as "[timestamp] username (userId): message". The username is their display name and the userId in parentheses is their unique identifier. Users may change their display name, so always use the userId for replyTo.
 Images attached to messages will be included inline for you to see.
 ${botUserId ? `Your Discord user ID is ${botUserId}. When users mention you with <@${botUserId}>, they are talking to you.` : ''}
 ${botUsername ? `Your Discord username is "${botUsername}". Users may address you by name instead of mentioning you.` : ''}
+${aliasLine}
 
 You MUST always respond using the following template format. Each reply is a block separated by ---. You may send one or more replies.
 

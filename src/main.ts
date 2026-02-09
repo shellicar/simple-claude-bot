@@ -23,7 +23,9 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: Message[] = [];
 
-  const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR } = botSchema.parse(env);
+  const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR, BOT_ALIASES } = botSchema.parse(env);
+
+  const botAliases = BOT_ALIASES ? BOT_ALIASES.split(',').map((a) => a.trim()).filter(Boolean) : [];
 
   initSessionPaths(CLAUDE_CONFIG_DIR);
 
@@ -37,7 +39,7 @@ const main = async () => {
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
-  let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled });
+  let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botAliases });
 
   const findChannel = (): TextChannel | undefined => {
     return client.channels.cache.find(
@@ -66,7 +68,7 @@ const main = async () => {
   client.once('ready', async () => {
     const botUserId = client.user?.id;
     const botUsername = client.user?.username;
-    systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId, botUsername });
+    systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId, botUsername, botAliases });
     logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
     logger.info(`Listening for messages in #${CLAUDE_CHANNEL}`);
     logger.debug(`System prompt: ${systemPrompt}`);

@@ -1,4 +1,4 @@
-import { query, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, SDKMessage, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -72,15 +72,26 @@ function buildQueryOptions(params: {
   } satisfies Options;
 }
 
+type SDKMessageWithSubtype = SDKMessage & { subtype?: string };
+
+const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
+  return 'subtype' in m;
+}
+
 async function executeQuery(
   prompt: string | AsyncIterable<SDKUserMessage>,
   options: Options,
   onSessionId: (id: string) => void,
+  channel?: TextChannel,
 ): Promise<string> {
   const startTime = Date.now();
+  if (channel) {
+    await channel.sendTyping();
+  }
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     logger.debug(`Still waiting after ${elapsed}s...`);
+    channel?.sendTyping();
   }, 5000);
 
   logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
@@ -90,7 +101,9 @@ async function executeQuery(
     const q = query({ prompt, options });
 
     for await (const msg of q) {
-      logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
+      if (hasSubType(msg)) {
+        logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
+      }
       if (msg.type === 'system' && msg.subtype === 'init') {
         onSessionId(msg.session_id);
       }
@@ -191,14 +204,12 @@ export async function resetSession(
     return;
   }
 
-  // Format messages as text, normalising bot display names to current username
-  const botUsername = channel.client.user?.username ?? 'Claude';
+  // Format messages as text with original display names
   const history = messages
     .map((m) => {
       const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
-      const displayName = m.author.bot ? botUsername : m.author.displayName;
       const prefix = m.author.bot ? '[BOT] ' : '';
-      return `${prefix}[${zdt.format(timestampFormatter)}] ${displayName} (${m.author.id}): ${m.content}`;
+      return `${prefix}[${zdt.format(timestampFormatter)}] ${m.author.displayName} (${m.author.id}): ${m.content}`;
     })
     .join('\n');
 
@@ -270,7 +281,6 @@ export async function sendUnprompted(
   sandboxConfig: SandboxConfig,
 ): Promise<void> {
   try {
-    await channel.sendTyping();
     logger.info(`Unprompted: ${prompt}`);
 
     const options = buildQueryOptions({
@@ -281,7 +291,7 @@ export async function sendUnprompted(
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, options, saveDiscordSession);
+    const result = await executeQuery(prompt, options, saveDiscordSession, channel);
 
     if (!result) {
       logger.warn('Empty unprompted response');
@@ -311,8 +321,6 @@ export async function respondToMessages(
   sandboxConfig: SandboxConfig,
 ): Promise<void> {
   try {
-    await channel.sendTyping();
-
     const contentBlocks = buildContentBlocks(messages);
     const hasImages = contentBlocks.some((b) => b.type === 'image');
 
@@ -344,7 +352,7 @@ export async function respondToMessages(
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, options, saveDiscordSession);
+    const result = await executeQuery(prompt, options, saveDiscordSession, channel);
 
     if (!result) {
       logger.warn('Empty response from Claude');
@@ -366,6 +374,7 @@ export async function respondToMessages(
 
     for (const reply of replies) {
       if (reply.delay) {
+        logger.debug(`Delaying ${reply.delay}ms before next message`);
         await setTimeout(reply.delay);
       }
 
@@ -377,6 +386,7 @@ export async function respondToMessages(
         } else {
           await channel.send(chunk);
         }
+        logger.debug(`Sent message (${chunk.length} chars)`);
       }
     }
   } catch (error) {
