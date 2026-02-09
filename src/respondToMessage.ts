@@ -39,8 +39,8 @@ function buildSandboxEnv(): Record<string, string> {
 
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-const zone = ZoneId.systemDefault();
-const timestampFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy 'at' HH:mm:ss VV (xxx)").withLocale(Locale.ENGLISH);
+export const zone = ZoneId.systemDefault();
+export const timestampFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy 'at' HH:mm:ss VV (xxx)").withLocale(Locale.ENGLISH);
 
 let claudeDir: string;
 let DISCORD_SESSION_FILE: string;
@@ -105,20 +105,29 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
   return 'subtype' in m;
 }
 
+interface ExecuteQueryOptions {
+  channel?: TextChannel;
+  showTyping?: boolean;
+}
+
 async function executeQuery(
   prompt: string | AsyncIterable<SDKUserMessage>,
   options: Options,
   onSessionId: (id: string) => void,
-  channel?: TextChannel,
+  queryOptions?: ExecuteQueryOptions,
 ): Promise<string> {
+  const channel = queryOptions?.channel;
+  const showTyping = queryOptions?.showTyping ?? true;
   const startTime = Date.now();
-  if (channel) {
+  if (channel && showTyping) {
     await channel.sendTyping();
   }
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     logger.debug(`Still waiting after ${elapsed}s...`);
-    channel?.sendTyping();
+    if (showTyping) {
+      channel?.sendTyping();
+    }
   }, 5000);
 
   logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
@@ -310,26 +319,31 @@ export async function sendUnprompted(
   channel: TextChannel,
   systemPrompt: string,
   sandboxConfig: SandboxConfig,
-): Promise<void> {
+  options?: { allowedTools?: string[]; maxTurns?: number; showTyping?: boolean },
+): Promise<boolean> {
   try {
     logger.info(`Unprompted: ${prompt}`);
 
-    const options = buildQueryOptions({
+    const sdkOptions = buildQueryOptions({
       systemPrompt,
-      allowedTools: [],
-      maxTurns: 1,
+      allowedTools: options?.allowedTools ?? [],
+      maxTurns: options?.maxTurns ?? 1,
       sandboxConfig,
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, options, saveDiscordSession, channel);
+    const result = await executeQuery(prompt, sdkOptions, saveDiscordSession, { channel, showTyping: options?.showTyping });
 
     if (!result) {
       logger.warn('Empty unprompted response');
-      return;
+      return false;
     }
 
     const replies = parseResponse(result);
+
+    if (replies.length === 0) {
+      return false;
+    }
 
     for (const reply of replies) {
       if (reply.delay) {
@@ -339,9 +353,11 @@ export async function sendUnprompted(
         await channel.send(chunk);
       }
     }
+    return true;
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
     discordSessionId = undefined;
+    return false;
   }
 }
 
@@ -383,7 +399,7 @@ export async function respondToMessages(
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, options, saveDiscordSession, channel);
+    const result = await executeQuery(prompt, options, saveDiscordSession, { channel });
 
     if (!result) {
       logger.warn('Empty response from Claude');

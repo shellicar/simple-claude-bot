@@ -16,6 +16,7 @@ import {
 import { buildSystemPrompt } from './systemPrompts.js';
 import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
+import { startWorkPlay, stopWorkPlay, resetActivity, triggerWorkPlay, seedActivity } from './workplay.js';
 
 const main = async () => {
   logger.info('Starting simple-claude-bot...');
@@ -57,6 +58,7 @@ const main = async () => {
 
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down...`);
+    stopWorkPlay();
     client.destroy();
     logger.info('Shutdown complete.');
     process.exit(0);
@@ -75,6 +77,22 @@ const main = async () => {
     botChannel = findChannel();
     if (botChannel) {
       logger.info(`Found channel #${botChannel.name} in guild ${botChannel.guild.name} (${botChannel.guild.id})`);
+      const lastMessage = (await botChannel.messages.fetch({ limit: 1 })).first();
+      if (lastMessage) {
+        seedActivity(lastMessage.createdTimestamp);
+        logger.info(`Seeded activity from last message at ${new Date(lastMessage.createdTimestamp).toISOString()}`);
+      }
+      startWorkPlay({
+        channel: botChannel,
+        systemPrompt,
+        sandboxConfig,
+        isProcessing: () => processing !== undefined,
+        setProcessing: (p) => {
+          processing = p.finally(() => {
+            processing = undefined;
+          });
+        },
+      });
     } else {
       logger.warn(`Channel #${CLAUDE_CHANNEL} not found in guild ${DISCORD_GUILD}`);
     }
@@ -95,6 +113,7 @@ const main = async () => {
     }
 
     logger.info(`${message.author.displayName}: ${message.content}`);
+    resetActivity();
     messageQueue.push(message);
 
     if (processing) {
@@ -103,6 +122,7 @@ const main = async () => {
 
     processing = processQueue(channel).finally(() => {
       processing = undefined;
+      resetActivity();
     });
   });
 
@@ -113,8 +133,15 @@ const main = async () => {
 
     if (trimmed === '/shutdown') {
       logger.info('Shutdown command received');
+      stopWorkPlay();
       client.destroy();
       process.exit(0);
+    }
+
+    if (trimmed === '/workplay') {
+      logger.info('WorkPlay manual trigger received');
+      triggerWorkPlay();
+      return;
     }
 
     if (trimmed === '/prompt') {
