@@ -17,6 +17,9 @@ importers:
       '@js-joda/core':
         specifier: ^5.7.0
         version: 5.7.0
+      '@js-joda/locale_en':
+        specifier: ^4.15.3
+        version: 4.15.3(@js-joda/core@5.7.0)(@js-joda/timezone@2.23.0(@js-joda/core@5.7.0))
       '@js-joda/timezone':
         specifier: ^2.23.0
         version: 2.23.0(@js-joda/core@5.7.0)
@@ -405,6 +408,12 @@ packages:
 
   '@js-joda/core@5.7.0':
     resolution: {integrity: sha512-WBu4ULVVxySLLzK1Ppq+OdfP+adRS4ntmDQT915rzDJ++i95gc2jZkM5B6LWEAwN3lGXpfie3yPABozdD3K3Vg==}
+
+  '@js-joda/locale_en@4.15.3':
+    resolution: {integrity: sha512-ZtayBOZ6dQ8wiVGq+7ZTZYjbm/kAN47BugfCsrhQQ3cun14SnB/0FFX2WMMgESLldgcFJ3raCwG+Rep14ZD4Og==}
+    peerDependencies:
+      '@js-joda/core': '>=3.2.0'
+      '@js-joda/timezone': ^2.3.0
 
   '@js-joda/timezone@2.23.0':
     resolution: {integrity: sha512-33rPV8ORT66Httd/IHQaymTZ//MbjF0WRB58JOUT0G04/a9cB5Q0RFTV1+T4XjIjHr+nY5QkO6KppqgogsJs+Q==}
@@ -1060,6 +1069,11 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@js-joda/core@5.7.0': {}
+
+  '@js-joda/locale_en@4.15.3(@js-joda/core@5.7.0)(@js-joda/timezone@2.23.0(@js-joda/core@5.7.0))':
+    dependencies:
+      '@js-joda/core': 5.7.0
+      '@js-joda/timezone': 2.23.0(@js-joda/core@5.7.0)
 
   '@js-joda/timezone@2.23.0(@js-joda/core@5.7.0)':
     dependencies:

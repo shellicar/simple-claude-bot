@@ -11,10 +11,8 @@ A minimal Discord bot that provides Claude AI chat in a dedicated channel using 
 - Image attachment support (JPEG, PNG, GIF, WebP)
 - Long message chunking for Discord's 2000 character limit
 - WebSearch and WebFetch tools enabled for responses
-- Startup greeting on fresh starts
-- Stdin commands (`/shutdown`, `/prompt`)
-- Graceful shutdown on SIGINT/SIGTERM
-- No shell or system commands - security by design
+- Optional sandboxed file access with SDK isolation
+- Docker support with privilege separation and security hardening
 
 ## Setup
 
@@ -81,6 +79,26 @@ This checks the bot's permissions and channel access in the configured guild.
 pnpm start
 ```
 
+## Docker
+
+Build and run with Docker for sandboxed deployment:
+
+```bash
+pnpm docker:build
+pnpm docker:run
+```
+
+The Docker image includes:
+- Privilege separation: Node runs as root, Claude Code runs as unprivileged `bot` user
+- Environment variable scrubbing: only safe system vars are passed to Claude Code
+- PreToolUse hooks for blocking access to sensitive files
+- Claude Code settings with deny rules for credentials
+
+Requires mounting:
+- `~/.claude/.credentials.json` (read-only) for Claude Code authentication
+- `~/.claude-bot` for persistent bot state (sessions, settings)
+- `./sandbox` for the sandbox working directory
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
@@ -88,6 +106,10 @@ pnpm start
 | `DISCORD_TOKEN` | Yes | — | Discord bot token |
 | `CLAUDE_CHANNEL` | No | `claude` | Channel name to respond in |
 | `DISCORD_GUILD` | Yes | — | Guild ID to restrict the bot to |
+| `SANDBOX_ENABLED` | No | `false` | Enable sandboxed file access (Bash, Read, Write, Edit, Glob, Grep) |
+| `SANDBOX_DIR` | No | `./sandbox` | Directory for sandboxed file operations |
+| `CLAUDE_CONFIG_DIR` | No | `~/.claude` | Directory for Claude Code config and session files |
+| `BOT_ALIASES` | No | — | Comma-separated list of previous bot usernames for history context |
 
 ## Usage
 
@@ -95,5 +117,8 @@ Send messages in the configured channel. The bot will respond with Claude's repl
 
 ### Stdin Commands
 
-- `/shutdown` — Sends a goodbye message and exits gracefully
+- `/shutdown` — Exits gracefully
 - `/prompt` — Sends an unprompted message (random thought/fun fact)
+- `/compact` — Compacts the current session to reduce context size
+- `/reset` — Resets the session and seeds it with recent channel history
+- `/direct <prompt>` — Sends a direct query to Claude outside the Discord session
