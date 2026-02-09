@@ -1,0 +1,126 @@
+import { TextChannel } from 'discord.js';
+import { Instant } from '@js-joda/core';
+import '@js-joda/timezone';
+import { sendUnprompted, type SandboxConfig, zone, timestampFormatter } from './respondToMessage.js';
+import { logger } from './logger.js';
+
+const TICK_INTERVAL_MS = 5 * 60 * 1000;
+const MAX_PROBABILITY = 0.5;
+const PROBABILITY_DIVISOR = 1200;
+const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
+const QUIET_HOUR_START = 22;
+const QUIET_HOUR_END = 10;
+
+interface WorkPlayConfig {
+  channel: TextChannel;
+  systemPrompt: string;
+  sandboxConfig: SandboxConfig;
+  isProcessing: () => boolean;
+  setProcessing: (p: Promise<void>) => void;
+}
+
+let lastActivityUtc = Date.now();
+let timer: ReturnType<typeof setInterval> | undefined;
+let activeConfig: WorkPlayConfig | undefined;
+
+export function resetActivity(): void {
+  lastActivityUtc = Date.now();
+}
+
+export function seedActivity(timestamp: number): void {
+  lastActivityUtc = timestamp;
+}
+
+function idleProbability(elapsedMs: number): number {
+  const minutes = elapsedMs / 60_000;
+  return Math.min(MAX_PROBABILITY, minutes / PROBABILITY_DIVISOR);
+}
+
+function isQuietHours(): boolean {
+  const hour = Instant.now().atZone(zone).hour();
+  return hour >= QUIET_HOUR_START || hour < QUIET_HOUR_END;
+}
+
+function buildIdlePrompt(): string {
+  const now = Instant.now().atZone(zone).format(timestampFormatter);
+  return `[System: The current time is ${now}. The channel has been quiet for a while. You can say something to the channel, do some work in the sandbox, or do nothing — it's up to you. If you have nothing to say or do, respond with an empty block. Don't force it.]`;
+}
+
+async function onTick(config: WorkPlayConfig): Promise<void> {
+  if (config.isProcessing()) {
+    logger.debug('WorkPlay tick: skipped (processing)');
+    return;
+  }
+
+  if (isQuietHours()) {
+    logger.debug('WorkPlay tick: skipped (quiet hours)');
+    return;
+  }
+
+  const elapsedMs = Date.now() - lastActivityUtc;
+  const probability = idleProbability(elapsedMs);
+  const roll = Math.random();
+
+  logger.debug(
+    `WorkPlay tick: elapsed=${Math.round(elapsedMs / 60_000)}min probability=${(probability * 100).toFixed(1)}% roll=${(roll * 100).toFixed(1)}%`,
+  );
+
+  if (roll >= probability) {
+    return;
+  }
+
+  logger.info('WorkPlay: triggered idle action');
+  sendIdlePrompt(config);
+}
+
+function sendIdlePrompt(config: WorkPlayConfig): void {
+  const prompt = buildIdlePrompt();
+  const sandboxEnabled = config.sandboxConfig.enabled;
+
+  const task = sendUnprompted(
+    prompt,
+    config.channel,
+    config.systemPrompt,
+    config.sandboxConfig,
+    { allowedTools: sandboxEnabled ? SANDBOX_TOOLS : [], maxTurns: sandboxEnabled ? 25 : 1, showTyping: false },
+  ).then((spoke) => {
+    logger.info(`WorkPlay: idle action complete (spoke=${spoke})`);
+  });
+
+  config.setProcessing(task);
+  resetActivity();
+}
+
+export function triggerWorkPlay(): boolean {
+  if (!activeConfig) {
+    logger.warn('WorkPlay: not started');
+    return false;
+  }
+  if (activeConfig.isProcessing()) {
+    logger.warn('WorkPlay: already processing');
+    return false;
+  }
+  logger.info('WorkPlay: manual trigger');
+  sendIdlePrompt(activeConfig);
+  return true;
+}
+
+export function startWorkPlay(config: WorkPlayConfig): void {
+  logger.info('WorkPlay: starting idle timer');
+  activeConfig = config;
+  resetActivity();
+  timer = setInterval(() => {
+    onTick(config).catch((error) => {
+      logger.error(`WorkPlay tick error: ${error}`);
+    });
+  }, TICK_INTERVAL_MS);
+}
+
+export function stopWorkPlay(): void {
+  if (timer) {
+    clearInterval(timer);
+    timer = undefined;
+    activeConfig = undefined;
+    logger.info('WorkPlay: stopped idle timer');
+  }
+}
