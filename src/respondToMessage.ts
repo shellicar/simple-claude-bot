@@ -22,6 +22,21 @@ export interface SandboxConfig {
 
 const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const;
 
+const ENV_PASSTHROUGH = new Set([
+  'HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG',
+  'NODE_VERSION', 'YARN_VERSION',
+]);
+
+function buildSandboxEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of ENV_PASSTHROUGH) {
+    if (process.env[key]) {
+      env[key] = process.env[key];
+    }
+  }
+  return env;
+}
+
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 const zone = ZoneId.systemDefault();
@@ -65,8 +80,9 @@ function buildQueryOptions(params: {
     allowedTools: sandboxEnabled ? [...allowedTools, ...SANDBOX_TOOLS] : allowedTools,
     maxTurns: sandboxEnabled && maxTurns < 3 ? 3 : maxTurns,
     systemPrompt,
+    settingSources: ['user'],
     ...(sandboxEnabled
-      ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }
+      ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true }, env: buildSandboxEnv() }
       : {}),
     ...(sessionId ? { resume: sessionId } : {}),
   } satisfies Options;
@@ -105,6 +121,7 @@ async function executeQuery(
         logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
+        logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
         onSessionId(msg.session_id);
       }
       if (msg.type === 'result') {
@@ -265,7 +282,7 @@ export async function directQuery(
 ): Promise<string> {
   const options = buildQueryOptions({
     systemPrompt: buildSystemPrompt({ type: 'direct' }),
-    allowedTools: ['WebSearch', 'WebFetch'],
+    allowedTools: ['WebSearch', 'WebFetch', 'Bash'],
     maxTurns: 25,
     sandboxConfig,
     sessionId: directSessionId,

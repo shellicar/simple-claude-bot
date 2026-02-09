@@ -1,9 +1,17 @@
 #!/bin/sh
 INPUT=$(cat)
+CMD=$(echo "$INPUT" | grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1)
+LOG=/tmp/cerberus.log
 
 block() {
-  echo "$INPUT" | grep -qiE "$1" && { echo "denied" >&2; exit 2; }
+  if echo "$CMD" | grep -qiE "$1"; then
+    echo "$(date '+%H:%M:%S') DENIED: $CMD" >> "$LOG"
+    echo "denied" >&2
+    exit 2
+  fi
 }
+
+echo "$(date '+%H:%M:%S') CHECK: $CMD" >> "$LOG"
 
 block '\.credentials'
 block '/home/bot/\.claude'

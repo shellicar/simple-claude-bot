@@ -32,7 +32,7 @@ COPY claude-home/ /opt/claude-home/
 # Lock down app files and create Claude wrapper that drops to bot user
 RUN chmod -R 750 /app \
   && chmod +x /opt/claude-home/hooks/*.sh \
-  && printf '#!/bin/sh\nexport HOME=/home/bot\nunset DISCORD_TOKEN\nunset DISCORD_GUILD\nexec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"\n' > /usr/local/bin/claude-sandbox \
+  && printf '#!/bin/sh\nexport HOME=/home/bot\nexec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"\n' > /usr/local/bin/claude-sandbox \
   && chmod +x /usr/local/bin/claude-sandbox
 
 # Entrypoint copies Claude settings into the mounted volume, then runs the app
