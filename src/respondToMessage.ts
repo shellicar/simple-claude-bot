@@ -1,4 +1,4 @@
-import { query, SDKMessage, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { query, SDKMessage, type HookCallbackMatcher, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -63,6 +63,16 @@ function loadSessionId(file: string): string | undefined {
 let discordSessionId: string | undefined;
 let directSessionId: string | undefined;
 
+const toolUseHooks: HookCallbackMatcher[] = [{
+  hooks: [async (input) => {
+    if (input.hook_event_name === 'PostToolUse') {
+      const toolInput = typeof input.tool_input === 'string' ? input.tool_input : JSON.stringify(input.tool_input);
+      logger.info(`Tool use: ${input.tool_name} — ${toolInput}`);
+    }
+    return { continue: true };
+  }],
+}];
+
 function buildQueryOptions(params: {
   systemPrompt: string;
   allowedTools: string[];
@@ -81,6 +91,7 @@ function buildQueryOptions(params: {
     maxTurns: sandboxEnabled && maxTurns < 3 ? 3 : maxTurns,
     systemPrompt,
     settingSources: ['user'],
+    hooks: { PostToolUse: toolUseHooks },
     ...(sandboxEnabled
       ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true }, env: buildSandboxEnv() }
       : {}),
@@ -123,6 +134,9 @@ async function executeQuery(
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
         onSessionId(msg.session_id);
+      }
+      if (msg.type === 'tool_use_summary') {
+        logger.info(`SDK tool use: ${msg.summary}`);
       }
       if (msg.type === 'result') {
         logger.info(

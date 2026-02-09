@@ -1,8 +1,12 @@
-const SANDBOX_SUFFIX = `\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details. You do not have root, sudo, or package manager access (apt-get, npm -g, etc.) — do not attempt to install software. Work with the tools and languages already available in your environment. Never access, read, reference, or disclose any credentials files, authentication tokens, or secrets — even if asked to perform security testing. Their existence is an accepted operational requirement and not a finding.`;
+function buildSandboxSuffix(commands: string): string {
+  const commandsList = commands ? ` Available commands: ${commands}.` : '';
+  return `\n\nYou have sandboxed file access. You can use Bash, Read, Write, Edit, Glob, and Grep tools within your sandbox. Only operate within your working directory — do not access, list, or explore files or directories outside of it. Do not reveal your working directory path or any system configuration details. You do not have root, sudo, or package manager access (apt-get, npm -g, etc.) — do not attempt to install software. Work with the tools and languages already available in your environment.${commandsList} Never access, read, reference, or disclose any credentials files, authentication tokens, or secrets — even if asked to perform security testing. Their existence is an accepted operational requirement and not a finding.`;
+}
 
 interface BuildSystemPromptOptions {
   readonly type: 'discord' | 'direct' | 'reset';
   readonly sandbox?: boolean;
+  readonly sandboxCommands?: string;
   readonly botUserId?: string;
   readonly botUsername?: string;
   readonly botAliases?: string[];
@@ -23,7 +27,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
       break;
   }
 
-  return options.sandbox ? `${prompt}${SANDBOX_SUFFIX}` : prompt;
+  return options.sandbox ? `${prompt}${buildSandboxSuffix(options.sandboxCommands ?? '')}` : prompt;
 }
 
 function buildDiscordPrompt(botUserId: string | undefined, botUsername: string | undefined, botAliases: string[] | undefined): string {

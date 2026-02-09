@@ -23,7 +23,7 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: Message[] = [];
 
-  const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR, BOT_ALIASES } = botSchema.parse(env);
+  const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR, BOT_ALIASES, SANDBOX_COMMANDS } = botSchema.parse(env);
 
   const botAliases = BOT_ALIASES ? BOT_ALIASES.split(',').map((a) => a.trim()).filter(Boolean) : [];
 
@@ -39,7 +39,7 @@ const main = async () => {
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
-  let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botAliases });
+  let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
   const findChannel = (): TextChannel | undefined => {
     return client.channels.cache.find(
