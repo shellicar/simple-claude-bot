@@ -58,8 +58,8 @@ export function startDiscord(
   });
 
   client.on('messageCreate', (message: Message) => {
-    if (message.author.bot) {
-      logger.debug(`Filtered bot message: author=${message.author.displayName} (${message.author.id}) bot=${message.author.bot} webhook=${message.webhookId ?? 'none'} channel=${message.channel.id}`);
+    if (message.author.id === client.user?.id) {
+      logger.debug(`Filtered own message: author=${message.author.displayName} (${message.author.id})`);
       return;
     }
 
