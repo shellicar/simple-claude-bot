@@ -17,6 +17,7 @@ interface WorkPlayConfig {
   sandboxConfig: SandboxConfig;
   isProcessing: () => boolean;
   setProcessing: (p: Promise<void>) => void;
+  setPresence?: (status: 'online' | 'idle') => void;
 }
 
 let lastActivityUtc = Date.now();
@@ -53,9 +54,11 @@ async function onTick(config: WorkPlayConfig): Promise<void> {
   }
 
   if (isQuietHours()) {
+    config.setPresence?.('idle');
     logger.debug('WorkPlay tick: skipped (quiet hours)');
     return;
   }
+  config.setPresence?.('online');
 
   const elapsedMs = Date.now() - lastActivityUtc;
   const probability = idleProbability(elapsedMs);
@@ -101,6 +104,9 @@ export function startWorkPlay(config: WorkPlayConfig): void {
   logger.info('WorkPlay: starting idle timer');
   activeConfig = config;
   resetActivity();
+  onTick(config).catch((error) => {
+    logger.error(`WorkPlay tick error: ${error}`);
+  });
   timer = setInterval(() => {
     onTick(config).catch((error) => {
       logger.error(`WorkPlay tick error: ${error}`);
