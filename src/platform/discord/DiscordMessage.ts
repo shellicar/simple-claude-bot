@@ -2,16 +2,16 @@ import type { Message } from 'discord.js';
 import type { PlatformAttachment, PlatformMessage } from '../types.js';
 
 export class DiscordMessage implements PlatformMessage {
-  readonly authorId: string;
-  readonly authorDisplayName: string;
-  readonly authorIsBot: boolean;
-  readonly content: string;
-  readonly createdTimestamp: number;
-  readonly attachments: PlatformAttachment[];
+  public readonly authorId: string;
+  public readonly authorDisplayName: string;
+  public readonly authorIsBot: boolean;
+  public readonly content: string;
+  public readonly createdTimestamp: number;
+  public readonly attachments: PlatformAttachment[];
   /** @internal */
-  readonly _raw: Message;
+  public readonly _raw: Message;
 
-  constructor(message: Message) {
+  public constructor(message: Message) {
     this._raw = message;
     this.authorId = message.author.id;
     this.authorDisplayName = message.author.displayName;

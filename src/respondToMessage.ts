@@ -226,7 +226,7 @@ export async function compactSession(): Promise<void> {
   logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
 }
 
-export async function resetSession(channel: PlatformChannel, systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
+export async function resetSession(channel: PlatformChannel, _systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
   logger.info('Resetting Discord session...');
 
   // Delete old session

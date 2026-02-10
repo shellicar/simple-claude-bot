@@ -6,25 +6,25 @@ import { DiscordMessage } from './DiscordMessage.js';
 export class DiscordChannel implements PlatformChannel {
   private readonly messagesByAuthorId = new Map<string, Message>();
 
-  constructor(private readonly channel: TextChannel) {}
+  public constructor(private readonly channel: TextChannel) {}
 
-  trackMessage(message: PlatformMessage): void {
+  public trackMessage(message: PlatformMessage): void {
     if (message instanceof DiscordMessage) {
       this.messagesByAuthorId.set(message.authorId, message._raw);
     }
   }
 
-  clearTracked(): void {
+  public clearTracked(): void {
     this.messagesByAuthorId.clear();
   }
 
-  async sendMessage(content: string): Promise<void> {
+  public async sendMessage(content: string): Promise<void> {
     for (const chunk of chunkMessage(content)) {
       await this.channel.send(chunk);
     }
   }
 
-  async replyTo(message: PlatformMessage, content: string): Promise<void> {
+  public async replyTo(message: PlatformMessage, content: string): Promise<void> {
     const target = this.messagesByAuthorId.get(message.authorId);
     for (const chunk of chunkMessage(content)) {
       if (target) {
@@ -35,11 +35,11 @@ export class DiscordChannel implements PlatformChannel {
     }
   }
 
-  async sendTyping(): Promise<void> {
+  public async sendTyping(): Promise<void> {
     await this.channel.sendTyping();
   }
 
-  async fetchHistory(limit: number): Promise<PlatformMessage[]> {
+  public async fetchHistory(limit: number): Promise<PlatformMessage[]> {
     const messages: Message[] = [];
     let lastId: string | undefined;
 
@@ -52,11 +52,15 @@ export class DiscordChannel implements PlatformChannel {
         limit: fetchLimit,
         ...(lastId ? { before: lastId } : {}),
       });
-      if (fetched.size === 0) break;
+      if (fetched.size === 0) {
+        break;
+      }
       messages.push(...fetched.values());
       lastId = fetched.last()?.id;
       remaining -= fetched.size;
-      if (fetched.size < fetchLimit) break;
+      if (fetched.size < fetchLimit) {
+        break;
+      }
     }
 
     messages.reverse();

@@ -97,7 +97,9 @@ const main = async () => {
   const rl = createInterface({ input: process.stdin });
   rl.on('line', (line) => {
     const trimmed = line.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     if (trimmed === '/shutdown') {
       logger.info('Shutdown command received');
@@ -156,7 +158,7 @@ const main = async () => {
       logger.info(`Direct query: ${prompt}`);
       directQuery(prompt, sandboxConfig).then(
         (result) => {
-          console.log(`\n--- Direct Response ---\n${result}\n--- End ---\n`);
+          logger.info(`Direct response: ${result}`);
         },
         (error) => {
           logger.error(`Direct query error: ${error}`);
