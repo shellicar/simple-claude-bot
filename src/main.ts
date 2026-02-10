@@ -68,6 +68,7 @@ const main = async () => {
             processing = undefined;
           });
         },
+        setPresence: (status) => handle.setPresence(status),
       });
     },
     onMessage: (message) => {

@@ -1,4 +1,4 @@
-import { type Message, TextChannel } from 'discord.js';
+import { type Message, type PresenceStatus, type PresenceStatusData, TextChannel } from 'discord.js';
 import { createDiscordClient } from '../../createDiscordClient.js';
 import { logger } from '../../logger.js';
 import type { PlatformChannel, PlatformMessage } from '../types.js';
@@ -19,6 +19,7 @@ export interface DiscordReadyInfo {
 
 export interface DiscordHandle {
   destroy(): void;
+  setPresence(status: PresenceStatusData): void;
 }
 
 export function startDiscord(
@@ -54,6 +55,8 @@ export function startDiscord(
       logger.info(`Seeded activity from last message at ${new Date(lastMessageTimestamp).toISOString()}`);
     }
 
+    currentPresence = client.user?.presence.status;
+
     callbacks.onReady({ channel, botUserId, botUsername, lastMessageTimestamp });
   });
 
@@ -74,7 +77,17 @@ export function startDiscord(
 
   client.login(token);
 
+  let currentPresence: PresenceStatus | undefined;
+
   return {
     destroy: () => client.destroy(),
+    setPresence: (status: PresenceStatusData) => {
+      if (status === currentPresence) {
+        return;
+      }
+      logger.info(`Presence: ${currentPresence ?? 'unknown'} -> ${status}`);
+      currentPresence = status;
+      client.user?.setPresence({ status });
+    },
   };
 }
