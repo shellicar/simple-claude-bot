@@ -99,6 +99,14 @@ Requires mounting:
 - `~/.claude-bot` for persistent bot state (sessions, settings)
 - `./sandbox` for the sandbox working directory
 
+### Bubblewrap (sandbox isolation)
+
+The Claude Code SDK uses [bubblewrap](https://github.com/containers/bubblewrap) for sandbox isolation. Docker's default security profile blocks the unprivileged user namespaces that bubblewrap requires. To enable it, add `--security-opt apparmor=unconfined` to your `docker run` command. Without this, sandbox commands will fail with:
+
+```
+bwrap: No permissions to create new namespace
+```
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |
