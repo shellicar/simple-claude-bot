@@ -1,6 +1,6 @@
 # Simple Claude Discord Bot
 
-A minimal Discord bot that provides Claude AI chat in a dedicated channel using the Claude Agent SDK.
+A Discord bot that provides Claude AI chat in a dedicated channel using the Claude Agent SDK. Built with a platform-agnostic core for future multi-platform support.
 
 ## Features
 

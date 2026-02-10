@@ -1,4 +1,3 @@
-import { Message, TextChannel } from 'discord.js';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -14,8 +13,9 @@ import {
   type SandboxConfig,
 } from './respondToMessage.js';
 import { buildSystemPrompt } from './systemPrompts.js';
-import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
+import type { PlatformChannel, PlatformMessage } from './platform/types.js';
+import { startDiscord } from './platform/discord/startDiscord.js';
 import { startWorkPlay, stopWorkPlay, resetActivity, triggerWorkPlay, seedActivity } from './workplay.js';
 import versionInfo from '@shellicar/build-version/version';
 
@@ -23,9 +23,10 @@ const main = async () => {
   logger.info(`Starting simple-claude-bot v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
 
   let processing: Promise<void> | undefined;
-  const messageQueue: Message[] = [];
+  const messageQueue: PlatformMessage[] = [];
 
   const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR, BOT_ALIASES, SANDBOX_COMMANDS } = botSchema.parse(env);
+  const { DISCORD_TOKEN } = discordSchema.parse(env);
 
   const botAliases = BOT_ALIASES ? BOT_ALIASES.split(',').map((a) => a.trim()).filter(Boolean) : [];
 
@@ -39,94 +40,67 @@ const main = async () => {
   mkdirSync(sandboxConfig.directory, { recursive: true });
   logger.info(`Sandbox ${sandboxConfig.enabled ? 'enabled' : 'disabled'} (cwd: ${sandboxConfig.directory})`);
 
-  const client = createDiscordClient();
-  let botChannel: TextChannel | undefined;
+  let platformChannel: PlatformChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
-  const findChannel = (): TextChannel | undefined => {
-    return client.channels.cache.find(
-      (ch): ch is TextChannel =>
-        ch instanceof TextChannel && ch.guild.id === DISCORD_GUILD && ch.name === CLAUDE_CHANNEL,
-    );
-  };
-
-  const processQueue = async (channel: TextChannel) => {
+  const processQueue = async (channel: PlatformChannel) => {
     while (messageQueue.length > 0) {
       const batch = messageQueue.splice(0);
+      for (const m of batch) {
+        channel.trackMessage(m);
+      }
       await respondToMessages(batch, channel, systemPrompt, sandboxConfig);
+      channel.clearTracked();
     }
   };
+
+  const handle = startDiscord(
+    { guildId: DISCORD_GUILD, channelName: CLAUDE_CHANNEL },
+    DISCORD_TOKEN,
+    {
+      onReady: (info) => {
+        systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId: info.botUserId, botUsername: info.botUsername, botAliases });
+        logger.debug(`System prompt: ${systemPrompt}`);
+        platformChannel = info.channel;
+        if (info.lastMessageTimestamp) {
+          seedActivity(info.lastMessageTimestamp);
+        }
+        startWorkPlay({
+          channel: info.channel,
+          systemPrompt,
+          sandboxConfig,
+          isProcessing: () => processing !== undefined,
+          setProcessing: (p) => {
+            processing = p.finally(() => {
+              processing = undefined;
+            });
+          },
+        });
+      },
+      onMessage: (message) => {
+        resetActivity();
+        messageQueue.push(message);
+        if (processing || !platformChannel) {
+          return;
+        }
+        processing = processQueue(platformChannel).finally(() => {
+          processing = undefined;
+          resetActivity();
+        });
+      },
+    },
+  );
 
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down...`);
     stopWorkPlay();
-    client.destroy();
+    handle.destroy();
     logger.info('Shutdown complete.');
     process.exit(0);
   };
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-  client.once('ready', async () => {
-    const botUserId = client.user?.id;
-    const botUsername = client.user?.username;
-    systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId, botUsername, botAliases });
-    logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
-    logger.info(`Listening for messages in #${CLAUDE_CHANNEL}`);
-    logger.debug(`System prompt: ${systemPrompt}`);
-    botChannel = findChannel();
-    if (botChannel) {
-      logger.info(`Found channel #${botChannel.name} in guild ${botChannel.guild.name} (${botChannel.guild.id})`);
-      const lastMessage = (await botChannel.messages.fetch({ limit: 1 })).first();
-      if (lastMessage) {
-        seedActivity(lastMessage.createdTimestamp);
-        logger.info(`Seeded activity from last message at ${new Date(lastMessage.createdTimestamp).toISOString()}`);
-      }
-      startWorkPlay({
-        channel: botChannel,
-        systemPrompt,
-        sandboxConfig,
-        isProcessing: () => processing !== undefined,
-        setProcessing: (p) => {
-          processing = p.finally(() => {
-            processing = undefined;
-          });
-        },
-      });
-    } else {
-      logger.warn(`Channel #${CLAUDE_CHANNEL} not found in guild ${DISCORD_GUILD}`);
-    }
-  });
-
-  client.on('messageCreate', async (message: Message) => {
-    if (message.author.bot) {
-      logger.debug(`Filtered bot message: author=${message.author.displayName} (${message.author.id}) bot=${message.author.bot} webhook=${message.webhookId ?? 'none'} channel=${message.channel.id}`);
-      return;
-    }
-
-    const channel = message.channel;
-    if (
-      !(channel instanceof TextChannel) ||
-      channel.guild.id !== DISCORD_GUILD ||
-      channel.name !== CLAUDE_CHANNEL
-    ) {
-      return;
-    }
-
-    logger.info(`${message.author.displayName}: ${message.content}`);
-    resetActivity();
-    messageQueue.push(message);
-
-    if (processing) {
-      return;
-    }
-
-    processing = processQueue(channel).finally(() => {
-      processing = undefined;
-      resetActivity();
-    });
-  });
 
   const rl = createInterface({ input: process.stdin });
   rl.on('line', (line) => {
@@ -136,7 +110,7 @@ const main = async () => {
     if (trimmed === '/shutdown') {
       logger.info('Shutdown command received');
       stopWorkPlay();
-      client.destroy();
+      handle.destroy();
       process.exit(0);
     }
 
@@ -152,14 +126,14 @@ const main = async () => {
     }
 
     if (trimmed === '/prompt') {
-      if (!botChannel) {
+      if (!platformChannel) {
         logger.warn('Bot channel not found yet');
         return;
       }
       logger.info('Prompt command received');
       sendUnprompted(
         'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.',
-        botChannel,
+        platformChannel,
         systemPrompt,
         sandboxConfig,
       );
@@ -175,12 +149,12 @@ const main = async () => {
     }
 
     if (trimmed === '/reset') {
-      if (!botChannel) {
+      if (!platformChannel) {
         logger.warn('Bot channel not found yet');
         return;
       }
       logger.info('Reset command received');
-      resetSession(botChannel, systemPrompt, sandboxConfig).catch((error) => {
+      resetSession(platformChannel, systemPrompt, sandboxConfig).catch((error) => {
         logger.error(`Reset error: ${error}`);
       });
       return;
@@ -206,9 +180,6 @@ const main = async () => {
 
     logger.warn(`Unknown command: ${trimmed}`);
   });
-
-  const { DISCORD_TOKEN } = discordSchema.parse(env);
-  client.login(DISCORD_TOKEN);
 };
 
 await main();
