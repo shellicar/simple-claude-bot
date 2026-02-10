@@ -1,6 +1,6 @@
-import { TextChannel } from 'discord.js';
 import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
+import type { PlatformChannel } from './platform/types.js';
 import { sendUnprompted, type SandboxConfig, zone, timestampFormatter } from './respondToMessage.js';
 import { logger } from './logger.js';
 
@@ -12,7 +12,7 @@ const QUIET_HOUR_START = 22;
 const QUIET_HOUR_END = 10;
 
 interface WorkPlayConfig {
-  channel: TextChannel;
+  channel: PlatformChannel;
   systemPrompt: string;
   sandboxConfig: SandboxConfig;
   isProcessing: () => boolean;

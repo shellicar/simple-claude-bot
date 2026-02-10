@@ -3,13 +3,12 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/mes
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { Collection, Message, TextChannel } from 'discord.js';
 import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
 import { Locale } from '@js-joda/locale_en';
 import '@js-joda/timezone';
 import { execFileSync } from 'node:child_process';
-import { chunkMessage } from './chunkMessage.js';
 import { logger } from './logger.js';
+import type { PlatformChannel, PlatformMessage } from './platform/types.js';
 import { parseResponse } from './parseResponse.js';
 import { buildSystemPrompt } from './systemPrompts.js';
 
@@ -141,7 +140,7 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
 }
 
 interface ExecuteQueryOptions {
-  channel?: TextChannel;
+  channel?: PlatformChannel;
   showTyping?: boolean;
 }
 
@@ -242,7 +241,7 @@ export async function compactSession(): Promise<void> {
 }
 
 export async function resetSession(
-  channel: TextChannel,
+  channel: PlatformChannel,
   systemPrompt: string,
   sandboxConfig: SandboxConfig,
 ): Promise<void> {
@@ -255,22 +254,7 @@ export async function resetSession(
   discordSessionId = undefined;
 
   // Fetch recent message history from the channel
-  const messages: Message[] = [];
-  let lastId: string | undefined;
-
-  for (let i = 0; i < 5; i++) {
-    const fetched: Collection<string, Message> = await channel.messages.fetch({
-      limit: 100,
-      ...(lastId ? { before: lastId } : {}),
-    });
-    if (fetched.size === 0) break;
-    messages.push(...fetched.values());
-    lastId = fetched.last()?.id;
-    if (fetched.size < 100) break;
-  }
-
-  // Reverse to chronological order
-  messages.reverse();
+  const messages = await channel.fetchHistory(500);
 
   logger.info(`Fetched ${messages.length} messages for session seeding`);
 
@@ -283,8 +267,8 @@ export async function resetSession(
   const history = messages
     .map((m) => {
       const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
-      const prefix = m.author.bot ? '[BOT] ' : '';
-      return `${prefix}[${zdt.format(timestampFormatter)}] ${m.author.displayName} (${m.author.id}): ${m.content}`;
+      const prefix = m.authorIsBot ? '[BOT] ' : '';
+      return `${prefix}[${zdt.format(timestampFormatter)}] ${m.authorDisplayName} (${m.authorId}): ${m.content}`;
     })
     .join('\n');
 
@@ -303,17 +287,17 @@ export async function resetSession(
 }
 
 
-function buildContentBlocks(messages: Message[]): ContentBlockParam[] {
+function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
   const blocks: ContentBlockParam[] = [];
 
   for (const m of messages) {
     const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
     blocks.push({
       type: 'text',
-      text: `[${zdt.format(timestampFormatter)}] ${m.author.displayName} (${m.author.id}): ${m.content}`,
+      text: `[${zdt.format(timestampFormatter)}] ${m.authorDisplayName} (${m.authorId}): ${m.content}`,
     });
 
-    for (const attachment of m.attachments.values()) {
+    for (const attachment of m.attachments) {
       if (attachment.contentType && IMAGE_CONTENT_TYPES.has(attachment.contentType)) {
         blocks.push({
           type: 'image',
@@ -351,7 +335,7 @@ export async function directQuery(
 
 export async function sendUnprompted(
   prompt: string,
-  channel: TextChannel,
+  channel: PlatformChannel,
   systemPrompt: string,
   sandboxConfig: SandboxConfig,
   options?: { allowedTools?: string[]; maxTurns?: number; showTyping?: boolean },
@@ -384,9 +368,7 @@ export async function sendUnprompted(
       if (reply.delay) {
         await setTimeout(reply.delay);
       }
-      for (const chunk of chunkMessage(reply.message)) {
-        await channel.send(chunk);
-      }
+      await channel.sendMessage(reply.message);
     }
     return true;
   } catch (error) {
@@ -397,8 +379,8 @@ export async function sendUnprompted(
 }
 
 export async function respondToMessages(
-  messages: Message[],
-  channel: TextChannel,
+  messages: PlatformMessage[],
+  channel: PlatformChannel,
   systemPrompt: string,
   sandboxConfig: SandboxConfig,
 ): Promise<void> {
@@ -438,7 +420,7 @@ export async function respondToMessages(
 
     if (!result) {
       logger.warn('Empty response from Claude');
-      await channel.send('Sorry, I didn\'t get a response. Please try again.');
+      await channel.sendMessage('Sorry, I didn\'t get a response. Please try again.');
       return;
     }
 
@@ -449,9 +431,9 @@ export async function respondToMessages(
       return;
     }
 
-    const messagesByUserId = new Map<string, Message>();
+    const messagesByUserId = new Map<string, PlatformMessage>();
     for (const m of messages) {
-      messagesByUserId.set(m.author.id, m);
+      messagesByUserId.set(m.authorId, m);
     }
 
     for (const reply of replies) {
@@ -462,18 +444,15 @@ export async function respondToMessages(
 
       const target = reply.replyTo && reply.ping ? messagesByUserId.get(reply.replyTo) : undefined;
 
-      for (const chunk of chunkMessage(reply.message)) {
-        if (target) {
-          await target.reply(chunk);
-        } else {
-          await channel.send(chunk);
-        }
-        logger.debug(`Sent message (${chunk.length} chars)`);
+      if (target) {
+        await channel.replyTo(target, reply.message);
+      } else {
+        await channel.sendMessage(reply.message);
       }
     }
   } catch (error) {
     logger.error(`Error processing message: ${error}`);
     discordSessionId = undefined;
-    await channel.send('Sorry, I encountered an error processing your message.');
+    await channel.sendMessage('Sorry, I encountered an error processing your message.');
   }
 }

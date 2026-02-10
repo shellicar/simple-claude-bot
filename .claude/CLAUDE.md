@@ -9,7 +9,7 @@ A Discord bot that provides Claude AI chat in a dedicated channel using the Clau
 1. **Single channel only** - Bot responds only in a channel matching `CLAUDE_CHANNEL` env var (default: "claude")
 2. **Message queuing** - If already processing, new messages queue and are batched when ready
 3. **Session-based context** - Uses Claude Agent SDK session resumption for conversation continuity
-4. **TextChannel only** - Uses `instanceof TextChannel` check for type safety
+4. **Platform abstraction** - Core logic uses `PlatformChannel`/`PlatformMessage` interfaces; only `main.ts` imports Discord types
 5. **Sandbox tools** - When `SANDBOX_ENABLED=true`, bot gets Bash, Read, Write, Edit, Glob, Grep tools
 6. **Work/Play idle timer** - Bot can spontaneously chat or do sandbox work during quiet periods
 7. **Quiet hours** - 22:00–10:00 local time, bot "sleeps" (no idle ticks)
@@ -53,4 +53,4 @@ pnpm docker:run     # Run Docker container
 ## Future Ideas
 
 - **Dreaming**: During quiet hours (when the bot "sleeps"), instead of skipping idle ticks entirely, send a "dream" prompt — no sandbox tools, no chat output, just internal session thought. Dreams would persist in session memory and could influence the bot's conversation and behaviour when it wakes up.
-- **Multi-platform**: Support additional chat platforms beyond Discord (e.g. Microsoft Teams), abstracting the messaging layer so the core bot logic is platform-agnostic.
+- **Multi-platform**: Add a second platform implementation (e.g. Microsoft Teams) using the existing `PlatformChannel`/`PlatformMessage` interfaces in `src/platform/`.

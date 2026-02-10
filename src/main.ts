@@ -16,6 +16,8 @@ import {
 import { buildSystemPrompt } from './systemPrompts.js';
 import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
+import { DiscordChannel } from './platform/discord/DiscordChannel.js';
+import { DiscordMessage } from './platform/discord/DiscordMessage.js';
 import { startWorkPlay, stopWorkPlay, resetActivity, triggerWorkPlay, seedActivity } from './workplay.js';
 import versionInfo from '@shellicar/build-version/version';
 
@@ -41,6 +43,7 @@ const main = async () => {
 
   const client = createDiscordClient();
   let botChannel: TextChannel | undefined;
+  let platformChannel: DiscordChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
   const findChannel = (): TextChannel | undefined => {
@@ -50,10 +53,15 @@ const main = async () => {
     );
   };
 
-  const processQueue = async (channel: TextChannel) => {
+  const processQueue = async (channel: DiscordChannel) => {
     while (messageQueue.length > 0) {
       const batch = messageQueue.splice(0);
-      await respondToMessages(batch, channel, systemPrompt, sandboxConfig);
+      for (const m of batch) {
+        channel.trackMessage(m);
+      }
+      const wrapped = batch.map((m) => new DiscordMessage(m));
+      await respondToMessages(wrapped, channel, systemPrompt, sandboxConfig);
+      channel.clearTracked();
     }
   };
 
@@ -77,6 +85,7 @@ const main = async () => {
     logger.debug(`System prompt: ${systemPrompt}`);
     botChannel = findChannel();
     if (botChannel) {
+      platformChannel = new DiscordChannel(botChannel);
       logger.info(`Found channel #${botChannel.name} in guild ${botChannel.guild.name} (${botChannel.guild.id})`);
       const lastMessage = (await botChannel.messages.fetch({ limit: 1 })).first();
       if (lastMessage) {
@@ -84,7 +93,7 @@ const main = async () => {
         logger.info(`Seeded activity from last message at ${new Date(lastMessage.createdTimestamp).toISOString()}`);
       }
       startWorkPlay({
-        channel: botChannel,
+        channel: platformChannel,
         systemPrompt,
         sandboxConfig,
         isProcessing: () => processing !== undefined,
@@ -118,11 +127,11 @@ const main = async () => {
     resetActivity();
     messageQueue.push(message);
 
-    if (processing) {
+    if (processing || !platformChannel) {
       return;
     }
 
-    processing = processQueue(channel).finally(() => {
+    processing = processQueue(platformChannel).finally(() => {
       processing = undefined;
       resetActivity();
     });
@@ -152,14 +161,14 @@ const main = async () => {
     }
 
     if (trimmed === '/prompt') {
-      if (!botChannel) {
+      if (!platformChannel) {
         logger.warn('Bot channel not found yet');
         return;
       }
       logger.info('Prompt command received');
       sendUnprompted(
         'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.',
-        botChannel,
+        platformChannel,
         systemPrompt,
         sandboxConfig,
       );
@@ -175,12 +184,12 @@ const main = async () => {
     }
 
     if (trimmed === '/reset') {
-      if (!botChannel) {
+      if (!platformChannel) {
         logger.warn('Bot channel not found yet');
         return;
       }
       logger.info('Reset command received');
-      resetSession(botChannel, systemPrompt, sandboxConfig).catch((error) => {
+      resetSession(platformChannel, systemPrompt, sandboxConfig).catch((error) => {
         logger.error(`Reset error: ${error}`);
       });
       return;
