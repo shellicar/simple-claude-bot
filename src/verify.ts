@@ -1,11 +1,8 @@
-import { ChannelType, PermissionFlagsBits, REST, Routes } from 'discord.js';
-import {
-  type APIGuildChannel,
-  type RESTAPIPartialCurrentUserGuild,
-} from 'discord-api-types/v10';
 import { env } from 'node:process';
-import { discordSchema, botSchema } from './schema.js';
+import { ChannelType, PermissionFlagsBits, REST, Routes } from 'discord.js';
+import type { APIGuildChannel, RESTAPIPartialCurrentUserGuild } from 'discord-api-types/v10';
 import { logger } from './logger.js';
+import { botSchema, discordSchema } from './schema.js';
 
 const REQUIRED_PERMISSIONS = [
   { name: 'ViewChannel', bit: PermissionFlagsBits.ViewChannel },
@@ -52,9 +49,7 @@ const verify = async () => {
 
     // 3. Check for the configured channel
     const channels = (await rest.get(Routes.guildChannels(guild.id))) as APIGuildChannel[];
-    const targetChannel = channels.find(
-      (ch) => ch.type === ChannelType.GuildText && ch.name === CLAUDE_CHANNEL,
-    );
+    const targetChannel = channels.find((ch) => ch.type === ChannelType.GuildText && ch.name === CLAUDE_CHANNEL);
 
     if (targetChannel) {
       logger.info(`  PASS: Channel #${CLAUDE_CHANNEL} found (${targetChannel.id})`);

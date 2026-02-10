@@ -31,9 +31,7 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
 }
 
 function buildDiscordPrompt(botUserId: string | undefined, botUsername: string | undefined, botAliases: string[] | undefined): string {
-  const aliasLine = botAliases && botAliases.length > 0
-    ? `You have previously been known as: ${botAliases.map((a) => `"${a}"`).join(', ')}. Messages from these names in the history are from you.`
-    : '';
+  const aliasLine = botAliases && botAliases.length > 0 ? `You have previously been known as: ${botAliases.map((a) => `"${a}"`).join(', ')}. Messages from these names in the history are from you.` : '';
 
   return `You are a helpful assistant in a Discord group chat.
 Messages will be formatted as "[timestamp] username (userId): message". The username is their display name and the userId in parentheses is their unique identifier. Users may change their display name, so always use the userId for replyTo.

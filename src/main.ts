@@ -1,23 +1,15 @@
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { createInterface } from 'node:readline';
 import { env } from 'node:process';
-import { botSchema, discordSchema } from './schema.js';
-import {
-  compactSession,
-  directQuery,
-  initSessionPaths,
-  resetSession,
-  respondToMessages,
-  sendUnprompted,
-  type SandboxConfig,
-} from './respondToMessage.js';
-import { buildSystemPrompt } from './systemPrompts.js';
-import { logger } from './logger.js';
-import type { PlatformChannel, PlatformMessage } from './platform/types.js';
-import { startDiscord } from './platform/discord/startDiscord.js';
-import { startWorkPlay, stopWorkPlay, resetActivity, triggerWorkPlay, seedActivity } from './workplay.js';
+import { createInterface } from 'node:readline';
 import versionInfo from '@shellicar/build-version/version';
+import { logger } from './logger.js';
+import { startDiscord } from './platform/discord/startDiscord.js';
+import type { PlatformChannel, PlatformMessage } from './platform/types.js';
+import { compactSession, directQuery, initSessionPaths, resetSession, respondToMessages, type SandboxConfig, sendUnprompted } from './respondToMessage.js';
+import { botSchema, discordSchema } from './schema.js';
+import { buildSystemPrompt } from './systemPrompts.js';
+import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from './workplay.js';
 
 const main = async () => {
   logger.info(`Starting simple-claude-bot v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
@@ -28,7 +20,11 @@ const main = async () => {
   const { CLAUDE_CHANNEL, CLAUDE_CONFIG_DIR, DISCORD_GUILD, SANDBOX_ENABLED, SANDBOX_DIR, BOT_ALIASES, SANDBOX_COMMANDS } = botSchema.parse(env);
   const { DISCORD_TOKEN } = discordSchema.parse(env);
 
-  const botAliases = BOT_ALIASES ? BOT_ALIASES.split(',').map((a) => a.trim()).filter(Boolean) : [];
+  const botAliases = BOT_ALIASES
+    ? BOT_ALIASES.split(',')
+        .map((a) => a.trim())
+        .filter(Boolean)
+    : [];
 
   initSessionPaths(CLAUDE_CONFIG_DIR);
 
@@ -54,42 +50,38 @@ const main = async () => {
     }
   };
 
-  const handle = startDiscord(
-    { guildId: DISCORD_GUILD, channelName: CLAUDE_CHANNEL },
-    DISCORD_TOKEN,
-    {
-      onReady: (info) => {
-        systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId: info.botUserId, botUsername: info.botUsername, botAliases });
-        logger.debug(`System prompt: ${systemPrompt}`);
-        platformChannel = info.channel;
-        if (info.lastMessageTimestamp) {
-          seedActivity(info.lastMessageTimestamp);
-        }
-        startWorkPlay({
-          channel: info.channel,
-          systemPrompt,
-          sandboxConfig,
-          isProcessing: () => processing !== undefined,
-          setProcessing: (p) => {
-            processing = p.finally(() => {
-              processing = undefined;
-            });
-          },
-        });
-      },
-      onMessage: (message) => {
-        resetActivity();
-        messageQueue.push(message);
-        if (processing || !platformChannel) {
-          return;
-        }
-        processing = processQueue(platformChannel).finally(() => {
-          processing = undefined;
-          resetActivity();
-        });
-      },
+  const handle = startDiscord({ guildId: DISCORD_GUILD, channelName: CLAUDE_CHANNEL }, DISCORD_TOKEN, {
+    onReady: (info) => {
+      systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxConfig.enabled, botUserId: info.botUserId, botUsername: info.botUsername, botAliases });
+      logger.debug(`System prompt: ${systemPrompt}`);
+      platformChannel = info.channel;
+      if (info.lastMessageTimestamp) {
+        seedActivity(info.lastMessageTimestamp);
+      }
+      startWorkPlay({
+        channel: info.channel,
+        systemPrompt,
+        sandboxConfig,
+        isProcessing: () => processing !== undefined,
+        setProcessing: (p) => {
+          processing = p.finally(() => {
+            processing = undefined;
+          });
+        },
+      });
     },
-  );
+    onMessage: (message) => {
+      resetActivity();
+      messageQueue.push(message);
+      if (processing || !platformChannel) {
+        return;
+      }
+      processing = processQueue(platformChannel).finally(() => {
+        processing = undefined;
+        resetActivity();
+      });
+    },
+  });
 
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down...`);
@@ -105,7 +97,9 @@ const main = async () => {
   const rl = createInterface({ input: process.stdin });
   rl.on('line', (line) => {
     const trimmed = line.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     if (trimmed === '/shutdown') {
       logger.info('Shutdown command received');
@@ -131,12 +125,7 @@ const main = async () => {
         return;
       }
       logger.info('Prompt command received');
-      sendUnprompted(
-        'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.',
-        platformChannel,
-        systemPrompt,
-        sandboxConfig,
-      );
+      sendUnprompted('Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.', platformChannel, systemPrompt, sandboxConfig);
       return;
     }
 
@@ -169,7 +158,7 @@ const main = async () => {
       logger.info(`Direct query: ${prompt}`);
       directQuery(prompt, sandboxConfig).then(
         (result) => {
-          console.log(`\n--- Direct Response ---\n${result}\n--- End ---\n`);
+          logger.info(`Direct response: ${result}`);
         },
         (error) => {
           logger.error(`Direct query error: ${error}`);

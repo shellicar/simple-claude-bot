@@ -1,15 +1,15 @@
-import { query, SDKMessage, type HookCallbackMatcher, type HookEvent, type HookInput, type Options, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
+import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
 import { Locale } from '@js-joda/locale_en';
 import '@js-joda/timezone';
 import { execFileSync } from 'node:child_process';
 import { logger } from './logger.js';
-import type { PlatformChannel, PlatformMessage } from './platform/types.js';
 import { parseResponse } from './parseResponse.js';
+import type { PlatformChannel, PlatformMessage } from './platform/types.js';
 import { buildSystemPrompt } from './systemPrompts.js';
 
 const claudePath = process.env.CLAUDE_PATH ?? execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim();
@@ -21,10 +21,7 @@ export interface SandboxConfig {
 
 const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const;
 
-const ENV_PASSTHROUGH = new Set([
-  'HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG',
-  'NODE_VERSION', 'YARN_VERSION',
-]);
+const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'YARN_VERSION']);
 
 function buildSandboxEnv(): Record<string, string> {
   const env: Record<string, string> = {};
@@ -90,12 +87,16 @@ function logHook(input: HookInput): void {
   }
 }
 
-const hookMatcher: HookCallbackMatcher[] = [{
-  hooks: [async (input) => {
-    logHook(input);
-    return { continue: true };
-  }],
-}];
+const hookMatcher: HookCallbackMatcher[] = [
+  {
+    hooks: [
+      async (input) => {
+        logHook(input);
+        return { continue: true };
+      },
+    ],
+  },
+];
 
 const sdkHooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {
   PostToolUse: hookMatcher,
@@ -107,13 +108,7 @@ const sdkHooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {
   Notification: hookMatcher,
 };
 
-function buildQueryOptions(params: {
-  systemPrompt: string;
-  allowedTools: string[];
-  maxTurns: number;
-  sandboxConfig: SandboxConfig;
-  sessionId?: string;
-}): Options {
+function buildQueryOptions(params: { systemPrompt: string; allowedTools: string[]; maxTurns: number; sandboxConfig: SandboxConfig; sessionId?: string }): Options {
   const { systemPrompt, allowedTools, maxTurns, sandboxConfig, sessionId } = params;
   const sandboxEnabled = sandboxConfig.enabled;
 
@@ -126,9 +121,7 @@ function buildQueryOptions(params: {
     systemPrompt,
     settingSources: ['user'],
     hooks: sdkHooks,
-    ...(sandboxEnabled
-      ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true }, env: buildSandboxEnv() }
-      : {}),
+    ...(sandboxEnabled ? { sandbox: { enabled: true, autoAllowBashIfSandboxed: true }, env: buildSandboxEnv() } : {}),
     ...(sessionId ? { resume: sessionId } : {}),
   } satisfies Options;
 }
@@ -137,19 +130,14 @@ type SDKMessageWithSubtype = SDKMessage & { subtype?: string };
 
 const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
   return 'subtype' in m;
-}
+};
 
 interface ExecuteQueryOptions {
   channel?: PlatformChannel;
   showTyping?: boolean;
 }
 
-async function executeQuery(
-  prompt: string | AsyncIterable<SDKUserMessage>,
-  options: Options,
-  onSessionId: (id: string) => void,
-  queryOptions?: ExecuteQueryOptions,
-): Promise<string> {
+async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void, queryOptions?: ExecuteQueryOptions): Promise<string> {
   const channel = queryOptions?.channel;
   const showTyping = queryOptions?.showTyping ?? true;
   const startTime = Date.now();
@@ -182,9 +170,7 @@ async function executeQuery(
         logger.info(`SDK tool use: ${msg.summary}`);
       }
       if (msg.type === 'result') {
-        logger.info(
-          `SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`,
-        );
+        logger.info(`SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`);
         if (msg.subtype === 'success') {
           result = msg.result;
         } else {
@@ -240,11 +226,7 @@ export async function compactSession(): Promise<void> {
   logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
 }
 
-export async function resetSession(
-  channel: PlatformChannel,
-  systemPrompt: string,
-  sandboxConfig: SandboxConfig,
-): Promise<void> {
+export async function resetSession(channel: PlatformChannel, _systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
   logger.info('Resetting Discord session...');
 
   // Delete old session
@@ -286,7 +268,6 @@ export async function resetSession(
   logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
 }
 
-
 function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
   const blocks: ContentBlockParam[] = [];
 
@@ -318,10 +299,7 @@ function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
   return blocks;
 }
 
-export async function directQuery(
-  prompt: string,
-  sandboxConfig: SandboxConfig,
-): Promise<string> {
+export async function directQuery(prompt: string, sandboxConfig: SandboxConfig): Promise<string> {
   const options = buildQueryOptions({
     systemPrompt: buildSystemPrompt({ type: 'direct' }),
     allowedTools: ['WebSearch', 'WebFetch', 'Bash'],
@@ -333,13 +311,7 @@ export async function directQuery(
   return executeQuery(prompt, options, saveDirectSession);
 }
 
-export async function sendUnprompted(
-  prompt: string,
-  channel: PlatformChannel,
-  systemPrompt: string,
-  sandboxConfig: SandboxConfig,
-  options?: { allowedTools?: string[]; maxTurns?: number; showTyping?: boolean },
-): Promise<boolean> {
+export async function sendUnprompted(prompt: string, channel: PlatformChannel, systemPrompt: string, sandboxConfig: SandboxConfig, options?: { allowedTools?: string[]; maxTurns?: number; showTyping?: boolean }): Promise<boolean> {
   try {
     logger.info(`Unprompted: ${prompt}`);
 
@@ -378,12 +350,7 @@ export async function sendUnprompted(
   }
 }
 
-export async function respondToMessages(
-  messages: PlatformMessage[],
-  channel: PlatformChannel,
-  systemPrompt: string,
-  sandboxConfig: SandboxConfig,
-): Promise<void> {
+export async function respondToMessages(messages: PlatformMessage[], channel: PlatformChannel, systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
   try {
     const contentBlocks = buildContentBlocks(messages);
     const hasImages = contentBlocks.some((b) => b.type === 'image');
@@ -420,7 +387,7 @@ export async function respondToMessages(
 
     if (!result) {
       logger.warn('Empty response from Claude');
-      await channel.sendMessage('Sorry, I didn\'t get a response. Please try again.');
+      await channel.sendMessage("Sorry, I didn't get a response. Please try again.");
       return;
     }
 

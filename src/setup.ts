@@ -1,8 +1,8 @@
-import { PermissionFlagsBits, REST, Routes } from 'discord.js';
-import { ApplicationFlags, type APIApplication } from 'discord-api-types/v10';
 import { env } from 'node:process';
-import { discordSchema, botSchema } from './schema.js';
+import { PermissionFlagsBits, REST, Routes } from 'discord.js';
+import { type APIApplication, ApplicationFlags } from 'discord-api-types/v10';
 import { logger } from './logger.js';
+import { botSchema, discordSchema } from './schema.js';
 
 const REQUIRED_PERMISSIONS = [
   { name: 'ViewChannel', bit: PermissionFlagsBits.ViewChannel },
