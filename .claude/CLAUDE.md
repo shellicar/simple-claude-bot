@@ -50,6 +50,10 @@ pnpm docker:run     # Run Docker container
 - Use `satisfies` for type safety where appropriate
 - esbuild bundles everything - no runtime `node_modules` needed in Docker
 
+## Known Quirks
+
+- `/compact` can fail with "No conversation found with session ID" — likely because the compact options don't include the sandbox/cwd configuration used when the session was created, but not yet investigated.
+
 ## Future Ideas
 
 - **Dreaming**: During quiet hours (when the bot "sleeps"), instead of skipping idle ticks entirely, send a "dream" prompt — no sandbox tools, no chat output, just internal session thought. Dreams would persist in session memory and could influence the bot's conversation and behaviour when it wakes up.
