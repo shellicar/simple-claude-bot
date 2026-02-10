@@ -8,8 +8,10 @@ export class DiscordChannel implements PlatformChannel {
 
   constructor(private readonly channel: TextChannel) {}
 
-  trackMessage(message: Message): void {
-    this.messagesByAuthorId.set(message.author.id, message);
+  trackMessage(message: PlatformMessage): void {
+    if (message instanceof DiscordMessage) {
+      this.messagesByAuthorId.set(message.authorId, message._raw);
+    }
   }
 
   clearTracked(): void {

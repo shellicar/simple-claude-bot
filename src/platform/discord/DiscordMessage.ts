@@ -8,8 +8,11 @@ export class DiscordMessage implements PlatformMessage {
   readonly content: string;
   readonly createdTimestamp: number;
   readonly attachments: PlatformAttachment[];
+  /** @internal */
+  readonly _raw: Message;
 
   constructor(message: Message) {
+    this._raw = message;
     this.authorId = message.author.id;
     this.authorDisplayName = message.author.displayName;
     this.authorIsBot = message.author.bot;

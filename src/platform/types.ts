@@ -17,4 +17,6 @@ export interface PlatformChannel {
   replyTo(message: PlatformMessage, content: string): Promise<void>;
   sendTyping(): Promise<void>;
   fetchHistory(limit: number): Promise<PlatformMessage[]>;
+  trackMessage(message: PlatformMessage): void;
+  clearTracked(): void;
 }
