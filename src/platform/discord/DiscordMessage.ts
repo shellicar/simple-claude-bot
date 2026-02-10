@@ -18,9 +18,12 @@ export class DiscordMessage implements PlatformMessage {
     this.authorIsBot = message.author.bot;
     this.content = message.content;
     this.createdTimestamp = message.createdTimestamp;
-    this.attachments = [...message.attachments.values()].map((a) => ({
-      url: a.url,
-      contentType: a.contentType,
-    }) satisfies PlatformAttachment);
+    this.attachments = [...message.attachments.values()].map(
+      (a) =>
+        ({
+          url: a.url,
+          contentType: a.contentType,
+        }) satisfies PlatformAttachment,
+    );
   }
 }

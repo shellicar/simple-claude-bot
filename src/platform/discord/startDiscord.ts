@@ -1,9 +1,9 @@
 import { type Message, TextChannel } from 'discord.js';
 import { createDiscordClient } from '../../createDiscordClient.js';
-import { DiscordChannel } from './DiscordChannel.js';
-import { DiscordMessage } from './DiscordMessage.js';
 import { logger } from '../../logger.js';
 import type { PlatformChannel, PlatformMessage } from '../types.js';
+import { DiscordChannel } from './DiscordChannel.js';
+import { DiscordMessage } from './DiscordMessage.js';
 
 export interface DiscordConfig {
   readonly guildId: string;
@@ -37,10 +37,7 @@ export function startDiscord(
     logger.info(`Logged in as ${client.user?.tag} (${botUserId})`);
     logger.info(`Listening for messages in #${config.channelName}`);
 
-    const botChannel = client.channels.cache.find(
-      (ch): ch is TextChannel =>
-        ch instanceof TextChannel && ch.guild.id === config.guildId && ch.name === config.channelName,
-    );
+    const botChannel = client.channels.cache.find((ch): ch is TextChannel => ch instanceof TextChannel && ch.guild.id === config.guildId && ch.name === config.channelName);
 
     if (!botChannel) {
       logger.warn(`Channel #${config.channelName} not found in guild ${config.guildId}`);
@@ -67,11 +64,7 @@ export function startDiscord(
     }
 
     const ch = message.channel;
-    if (
-      !(ch instanceof TextChannel) ||
-      ch.guild.id !== config.guildId ||
-      ch.name !== config.channelName
-    ) {
+    if (!(ch instanceof TextChannel) || ch.guild.id !== config.guildId || ch.name !== config.channelName) {
       return;
     }
 
