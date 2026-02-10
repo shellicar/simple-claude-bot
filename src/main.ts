@@ -17,9 +17,10 @@ import { buildSystemPrompt } from './systemPrompts.js';
 import { createDiscordClient } from './createDiscordClient.js';
 import { logger } from './logger.js';
 import { startWorkPlay, stopWorkPlay, resetActivity, triggerWorkPlay, seedActivity } from './workplay.js';
+import versionInfo from '@shellicar/build-version/version';
 
 const main = async () => {
-  logger.info('Starting simple-claude-bot...');
+  logger.info(`Starting simple-claude-bot v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
 
   let processing: Promise<void> | undefined;
   const messageQueue: Message[] = [];
@@ -137,6 +138,11 @@ const main = async () => {
       stopWorkPlay();
       client.destroy();
       process.exit(0);
+    }
+
+    if (trimmed === '/version') {
+      logger.info(`v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
+      return;
     }
 
     if (trimmed === '/workplay') {
