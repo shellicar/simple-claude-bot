@@ -100,6 +100,7 @@ const main = async () => {
 
   client.on('messageCreate', async (message: Message) => {
     if (message.author.bot) {
+      logger.debug(`Filtered bot message: author=${message.author.displayName} (${message.author.id}) bot=${message.author.bot} webhook=${message.webhookId ?? 'none'} channel=${message.channel.id}`);
       return;
     }
 
