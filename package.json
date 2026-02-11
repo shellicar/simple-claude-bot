@@ -13,7 +13,7 @@
     "verify": "node --env-file=.env dist/verify.js",
     "docker:build": "pnpm build && docker build -t simple-claude-bot .",
     "_docker:run": "docker run -it --init --env-file .env -v ~/.claude-bot:/home/bot/.claude -v ./sandbox:/sandbox simple-claude-bot",
-    "docker:run": "docker run -it --init --env-file .env -v ~/.claude/.credentials.json:/home/bot/.claude/.credentials.json:ro -v ~/.claude-bot:/home/bot/.claude -v ./sandbox:/sandbox simple-claude-bot"
+    "docker:run": "docker run -it --init --env-file .env -v ~/.claude:/opt/auth:ro -v ~/.claude-bot:/home/bot/.claude -v ./sandbox:/sandbox simple-claude-bot"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.37",

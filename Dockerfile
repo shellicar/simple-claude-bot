@@ -42,7 +42,7 @@ COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Lock down app files and set permissions
 RUN chmod -R 750 /app \
   && chmod +x /opt/claude-home/hooks/*.sh \
-  && chmod +x /usr/local/bin/claude-sandbox \
+  && chmod 750 /usr/local/bin/claude-sandbox \
   && chmod +x /usr/local/bin/entrypoint.sh
 
 ENV TZ=Australia/Melbourne
