@@ -6,7 +6,7 @@ interface ParsedReply {
 }
 
 export function parseResponse(raw: string): ParsedReply[] {
-  const blocks = raw.split('---').filter((b) => b.trim().length > 0);
+  const blocks = raw.split(/^\s*---\s*$/m).filter((b) => b.trim().length > 0);
 
   return blocks
     .map((block) => {
