@@ -6,13 +6,12 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/mes
 import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
 import { Locale } from '@js-joda/locale_en';
 import '@js-joda/timezone';
-import { execFileSync } from 'node:child_process';
 import { logger } from './logger.js';
 import { parseResponse } from './parseResponse.js';
 import type { PlatformChannel, PlatformMessage } from './platform/types.js';
 import { buildSystemPrompt } from './systemPrompts.js';
 
-const claudePath = process.env.CLAUDE_PATH ?? execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim();
+const claudePath = process.env.CLAUDE_PATH ?? 'claude';
 
 export interface SandboxConfig {
   readonly enabled: boolean;
