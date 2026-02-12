@@ -2,7 +2,7 @@ FROM node:22-slim AS base
 
 # Install sandbox dependencies and tools
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bubblewrap socat curl git ca-certificates gpg jq \
+  && apt-get install -y --no-install-recommends bubblewrap socat curl git ca-certificates gpg jq python3 python3-pip python3-venv \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -50,7 +50,7 @@ ENV SANDBOX_DIR=/sandbox
 ENV SANDBOX_ENABLED=true
 ENV CLAUDE_PATH=/usr/local/bin/claude-sandbox
 ENV CLAUDE_CONFIG_DIR=/home/bot/.claude
-ENV SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl"
+ENV SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["node", "dist/main.js"]
