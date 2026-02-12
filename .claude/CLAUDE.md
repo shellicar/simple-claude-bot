@@ -57,4 +57,11 @@ pnpm docker:run     # Run Docker container
 ## Future Ideas
 
 - **Dreaming**: During quiet hours (when the bot "sleeps"), instead of skipping idle ticks entirely, send a "dream" prompt — no sandbox tools, no chat output, just internal session thought. Dreams would persist in session memory and could influence the bot's conversation and behaviour when it wakes up.
+- **Quiet hours message batching**: During quiet hours, queue incoming messages without sending them to the SDK. When quiet hours end, deliver all overnight messages in a single batch — gives the bot a natural "morning" wake-up moment.
+- **Presence states**: Model the bot's availability as a state machine — Active (responds immediately, goes AFK after ~30 min idle), AFK (checks in periodically, transitions to Active when messages are found), and Sleeping (quiet hours, no check-ins, wakes with overnight batch). Creates natural response delays that feel human — someone who stepped away from their desk rather than an always-on service.
+- **Mood/energy**: The bot's tone shifts based on activity levels. Busy day — energetic, chatty. Quiet day — more reflective. Just woke up — groggy. Could be a simple counter that influences the system prompt.
+- **Reactions**: React with an emoji immediately on receiving a message (acknowledging it was seen), then respond with text later. More natural than silence followed by a wall of text.
+- **Natural message style**: Instead of single verbose responses, chunk messages like a person would — short messages, multiple sends, natural pauses. Technical responses can still be longer. Think about how many messages a person would actually send.
+- **Response throttling**: Global throttle that reduces the bot's allowed message volume the more it writes. Prevents runaway verbosity and encourages brevity over time.
 - **Multi-platform**: Add a second platform implementation (e.g. Microsoft Teams) using the existing `PlatformChannel`/`PlatformMessage` interfaces in `src/platform/`.
+- **In-Docker build**: Move `pnpm install` and `pnpm build` into the Dockerfile using layered caching (copy lockfile first, install, then copy source and build). Would enable single-command builds via `docker compose up --build` at the cost of multi-stage complexity.

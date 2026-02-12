@@ -1,0 +1,14 @@
+services:
+  bot:
+    container_name: simple-claude-bot
+    build: .
+    image: simple-claude-bot
+    init: true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ~/.claude/.credentials.json:/home/bot/.claude/.credentials.json
+      - ~/.claude-bot:/home/bot/.claude
+      - ./sandbox:/sandbox

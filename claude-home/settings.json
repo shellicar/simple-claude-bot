@@ -1,6 +1,7 @@
 {
   "permissions": {
     "deny": [
+      "Read(/opt)",
       "Read(/home/bot/.claude/.credentials.json)",
       "Read(/home/bot/.claude/settings.json)",
       "Read(/home/bot/.claude/hooks)",

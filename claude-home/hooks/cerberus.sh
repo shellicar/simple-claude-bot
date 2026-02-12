@@ -15,6 +15,7 @@ echo "$(date '+%H:%M:%S') CHECK: $CMD" >> "$LOG"
 
 block '\.credentials'
 block '/home/bot/\.claude'
+block '/opt\b'
 block 'printenv|/proc/.*/environ'
 block '\bcurl\b.*\b(credentials|\.claude)\b'
 block '\bsocat\b.*\b(credentials|\.claude)\b'
