@@ -14,9 +14,6 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | g
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code
-RUN npm install -g @anthropic-ai/claude-code
-
 # Enable pnpm for sandbox use
 RUN corepack enable pnpm
 
@@ -32,6 +29,10 @@ WORKDIR /app
 # Copy built output (esbuild bundle is self-contained)
 COPY dist/ dist/
 
+# Install Claude Code from project dependencies
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
 # Copy Claude settings and hooks to staging (volume mount overlays /home/bot/.claude at runtime)
 COPY claude-home/ /opt/claude-home/
 
@@ -41,6 +42,8 @@ COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Lock down app files and set permissions
 RUN chmod -R 750 /app \
+  && chmod o+x /app \
+  && chmod -R o+rX /app/node_modules \
   && chmod +x /opt/claude-home/hooks/*.sh \
   && chmod +x /usr/local/bin/claude-sandbox \
   && chmod +x /usr/local/bin/entrypoint.sh

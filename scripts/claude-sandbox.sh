@@ -1,3 +1,4 @@
 #!/bin/sh
 export HOME=/home/bot
-exec setpriv --reuid=bot --regid=bot --init-groups -- claude "$@"
+CLI="$(readlink -f /app/node_modules/@anthropic-ai/claude-code/cli.js)"
+exec setpriv --reuid=bot --regid=bot --init-groups -- "$CLI" "$@"
