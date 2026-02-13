@@ -1,8 +1,8 @@
 import { Instant } from '@js-joda/core';
-import '@js-joda/timezone';
-import { logger } from './logger.js';
-import type { ParsedReply } from './parseResponse.js';
-import { timestampFormatter, zone } from './respondToMessage.js';
+import { logger } from './logger';
+import type { ParsedReply } from './parseResponse';
+import { zone } from './zone';
+import { timestampFormatter } from './timestampFormatter';
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_PROBABILITY = 0.5;

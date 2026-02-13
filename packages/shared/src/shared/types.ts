@@ -1,15 +1,15 @@
-export type { ParsedReply } from '../parseResponse.js';
-export type { PlatformAttachment, PlatformMessage } from '../platform/types.js';
+import type { ParsedReply } from '../parseResponse';
+import type { PlatformMessage } from './platform/types';
 
 // --- Brain HTTP contract ---
 
 export interface RespondRequest {
-  readonly messages: import('../platform/types.js').PlatformMessage[];
+  readonly messages: PlatformMessage[];
   readonly systemPrompt: string;
 }
 
 export interface RespondResponse {
-  readonly replies: import('../parseResponse.js').ParsedReply[];
+  readonly replies: ParsedReply[];
   readonly error?: string;
 }
 
@@ -21,13 +21,14 @@ export interface UnpromptedRequest {
 }
 
 export interface UnpromptedResponse {
-  readonly replies: import('../parseResponse.js').ParsedReply[];
+  readonly replies: ParsedReply[];
   readonly spoke: boolean;
   readonly error?: string;
 }
 
 export interface DirectRequest {
   readonly prompt: string;
+  readonly systemPrompt: string;
 }
 
 export interface DirectResponse {
@@ -41,7 +42,7 @@ export interface CompactResponse {
 }
 
 export interface ResetRequest {
-  readonly messages: import('../platform/types.js').PlatformMessage[];
+  readonly messages: PlatformMessage[];
   readonly systemPrompt: string;
 }
 

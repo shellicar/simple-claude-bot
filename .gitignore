@@ -4,6 +4,7 @@
 conversation.json
 dist/
 node_modules/
+*.tsbuildinfo
 sandbox/
 
 .claude-bot/

@@ -1,36 +1,36 @@
-import { logger } from './logger.js';
-import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from './shared/types.js';
+import { logger } from '@simple-claude-bot/shared/logger';
+import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 
 const TIMEOUT_MS = 10 * 60 * 1000;
 
 export class BrainClient {
-  constructor(private readonly baseUrl: string) {}
+  public constructor(private readonly baseUrl: string) {}
 
-  async health(): Promise<HealthResponse> {
+  public async health(): Promise<HealthResponse> {
     return this.get<HealthResponse>('/health');
   }
 
-  async ping(): Promise<PingResponse> {
+  public async ping(): Promise<PingResponse> {
     return this.post<Record<string, never>, PingResponse>('/ping', {});
   }
 
-  async respond(request: RespondRequest): Promise<RespondResponse> {
+  public async respond(request: RespondRequest): Promise<RespondResponse> {
     return this.post<RespondRequest, RespondResponse>('/respond', request);
   }
 
-  async unprompted(request: UnpromptedRequest): Promise<UnpromptedResponse> {
+  public async unprompted(request: UnpromptedRequest): Promise<UnpromptedResponse> {
     return this.post<UnpromptedRequest, UnpromptedResponse>('/unprompted', request);
   }
 
-  async direct(request: DirectRequest): Promise<DirectResponse> {
+  public async direct(request: DirectRequest): Promise<DirectResponse> {
     return this.post<DirectRequest, DirectResponse>('/direct', request);
   }
 
-  async compact(): Promise<CompactResponse> {
+  public async compact(): Promise<CompactResponse> {
     return this.post<Record<string, never>, CompactResponse>('/compact', {});
   }
 
-  async reset(request: ResetRequest): Promise<ResetResponse> {
+  public async reset(request: ResetRequest): Promise<ResetResponse> {
     return this.post<ResetRequest, ResetResponse>('/reset', request);
   }
 

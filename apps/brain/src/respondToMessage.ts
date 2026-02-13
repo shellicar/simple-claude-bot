@@ -2,20 +2,16 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
-import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
-import { Locale } from '@js-joda/locale_en';
+import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
-import { logger } from './logger.js';
-import { type ParsedReply, parseResponse } from './parseResponse.js';
-import type { PlatformMessage } from './platform/types.js';
-import { buildSystemPrompt } from './systemPrompts.js';
+import { logger } from '@simple-claude-bot/shared/logger';
+import { type ParsedReply, parseResponse } from '@simple-claude-bot/shared/parseResponse';
+import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
+import type { SandboxConfig } from './types';
+import { zone } from '@simple-claude-bot/shared/zone';
+import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
-
-export interface SandboxConfig {
-  readonly enabled: boolean;
-  readonly directory: string;
-}
 
 const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const;
 
@@ -33,8 +29,7 @@ function buildSandboxEnv(): Record<string, string> {
 
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-export const zone = ZoneId.systemDefault();
-export const timestampFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy 'at' HH:mm:ss VV (xxx)").withLocale(Locale.ENGLISH);
+
 
 let claudeDir: string;
 let DISCORD_SESSION_FILE: string;
@@ -294,9 +289,9 @@ export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
   return executeQuery('ping', options, () => {});
 }
 
-export async function directQuery(prompt: string, sandboxConfig: SandboxConfig): Promise<string> {
+export async function directQuery(prompt: string, systemPrompt: string, sandboxConfig: SandboxConfig): Promise<string> {
   const options = buildQueryOptions({
-    systemPrompt: buildSystemPrompt({ type: 'direct' }),
+    systemPrompt,
     allowedTools: ['WebSearch', 'WebFetch', 'Bash'],
     maxTurns: 25,
     sandboxConfig,

@@ -1,13 +1,13 @@
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
-import { BrainClient } from '@simple-claude-bot/shared/brainClient';
+import { BrainClient } from './brainClient';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { ParsedReply } from '@simple-claude-bot/shared/parseResponse';
-import { startDiscord } from '@simple-claude-bot/shared/platform/discord/startDiscord';
-import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/platform/types';
+import { startDiscord } from './platform/discord/startDiscord';
+import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { earsSchema } from '@simple-claude-bot/shared/schema';
-import { buildSystemPrompt } from '@simple-claude-bot/shared/systemPrompts';
+import { buildSystemPrompt } from './systemPrompts';
 import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '@simple-claude-bot/shared/workplay';
 
 const main = async () => {
@@ -291,7 +291,7 @@ const main = async () => {
         return;
       }
       logger.info(`Direct query: ${prompt}`);
-      processing = brain.direct({ prompt }).then(
+      processing = brain.direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }) }).then(
         (response) => {
           if (response.error) {
             logger.error(`Direct query error: ${response.error}`);

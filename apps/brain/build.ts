@@ -19,6 +19,7 @@ const ctx = await esbuild.context({
   entryPoints,
   inject,
   chunkNames: 'chunks/[name]-[hash]',
+  external: ['@anthropic-ai/claude-agent-sdk'],
   entryNames: '[name]',
   keepNames: true,
   format: 'esm',

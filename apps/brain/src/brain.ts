@@ -5,7 +5,8 @@ import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { Hono } from 'hono';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { type SandboxConfig, compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from '@simple-claude-bot/shared/respondToMessage';
+import { compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from './respondToMessage';
+import { type SandboxConfig } from './types';
 import { brainSchema } from '@simple-claude-bot/shared/schema';
 import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 
@@ -68,7 +69,7 @@ const main = async () => {
   app.post('/direct', async (c) => {
     try {
       const body = await c.req.json<DirectRequest>();
-      const result = await directQuery(body.prompt, sandboxConfig);
+      const result = await directQuery(body.prompt, body.systemPrompt, sandboxConfig);
       return c.json({ result } satisfies DirectResponse);
     } catch (error) {
       logger.error(`/direct error: ${error}`);
