@@ -8,7 +8,7 @@ const minify = !watch;
 
 const plugins = [cleanPlugin({ destructive: true }), versionPlugin({})];
 
-const entryPoints = await glob('./src/*.ts');
+const entryPoints = await glob('./src/entry/*.ts');
 const inject = await glob('./inject/*.ts');
 
 const ctx = await esbuild.context({
