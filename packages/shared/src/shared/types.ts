@@ -1,5 +1,11 @@
-import type { ParsedReply } from '../parseResponse';
 import type { PlatformMessage } from './platform/types';
+
+export interface ParsedReply {
+  replyTo?: string;
+  ping?: boolean;
+  delay?: number;
+  message: string;
+}
 
 // --- Brain HTTP contract ---
 

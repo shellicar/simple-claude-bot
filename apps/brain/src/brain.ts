@@ -4,7 +4,7 @@ import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { brainSchema } from '@simple-claude-bot/shared/schema';
+import { brainSchema } from './brainSchema';
 import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { Hono } from 'hono';
 import { compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from './respondToMessage';

@@ -5,7 +5,8 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/mes
 import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { type ParsedReply, parseResponse } from '@simple-claude-bot/shared/parseResponse';
+import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import { parseResponse } from './parseResponse';
 import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';

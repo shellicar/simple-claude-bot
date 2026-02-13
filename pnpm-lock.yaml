@@ -50,6 +50,9 @@ importers:
       hono:
         specifier: ^4.11.9
         version: 4.11.9
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@shellicar/build-clean':
         specifier: ^1.2.2
@@ -69,6 +72,9 @@ importers:
 
   apps/config:
     dependencies:
+      '@simple-claude-bot/ears':
+        specifier: workspace:^
+        version: link:../ears
       '@simple-claude-bot/shared':
         specifier: workspace:^
         version: link:../../packages/shared
@@ -103,12 +109,18 @@ importers:
 
   apps/ears:
     dependencies:
+      '@js-joda/core':
+        specifier: ^5.7.0
+        version: 5.7.0
       '@simple-claude-bot/shared':
         specifier: workspace:^
         version: link:../../packages/shared
       discord.js:
         specifier: ^14.25.1
         version: 14.25.1
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       '@shellicar/build-clean':
         specifier: ^1.2.2
@@ -140,15 +152,9 @@ importers:
       '@js-joda/timezone':
         specifier: ^2.23.0
         version: 2.23.0(@js-joda/core@5.7.0)
-      discord.js:
-        specifier: ^14.25.1
-        version: 14.25.1
       winston:
         specifier: ^3.19.0
         version: 3.19.0
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@tsconfig/node22':
         specifier: ^22.0.5

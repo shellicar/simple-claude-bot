@@ -1,9 +1,4 @@
-export interface ParsedReply {
-  replyTo?: string;
-  ping?: boolean;
-  delay?: number;
-  message: string;
-}
+import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
 
 export function parseResponse(raw: string): ParsedReply[] {
   const blocks = raw.split(/^\s*---\s*$/m).filter((b) => b.trim().length > 0);

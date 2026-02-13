@@ -1,8 +1,8 @@
 import { Instant } from '@js-joda/core';
-import { logger } from './logger';
-import type { ParsedReply } from './parseResponse';
-import { timestampFormatter } from './timestampFormatter';
-import { zone } from './zone';
+import { logger } from '@simple-claude-bot/shared/logger';
+import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
+import { zone } from '@simple-claude-bot/shared/zone';
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_PROBABILITY = 0.5;

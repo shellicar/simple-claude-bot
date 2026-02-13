@@ -17,6 +17,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@simple-claude-bot/ears": "workspace:^",
     "@simple-claude-bot/shared": "workspace:^",
     "discord-api-types": "^0.38.38",
     "discord.js": "^14.25.1"

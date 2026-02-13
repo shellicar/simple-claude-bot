@@ -1,4 +1,4 @@
-import { createDiscordClient } from '@simple-claude-bot/shared/createDiscordClient';
+import { createDiscordClient } from '../../createDiscordClient';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { type Message, type PresenceStatus, type PresenceStatusData, TextChannel } from 'discord.js';
