@@ -11,4 +11,3 @@ export interface PlatformMessage {
   readonly createdTimestamp: number;
   readonly attachments: PlatformAttachment[];
 }
-
