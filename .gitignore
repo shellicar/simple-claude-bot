@@ -4,4 +4,9 @@
 conversation.json
 dist/
 node_modules/
+*.tsbuildinfo
 sandbox/
+
+.claude-bot/
+.claude-bot.backup/
+.turbo/
