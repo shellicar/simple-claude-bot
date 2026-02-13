@@ -1,0 +1,37 @@
+services:
+  ears:
+    build:
+      context: ..
+      dockerfile: banananetv1/Dockerfile
+    image: banananet
+    command: ["node", "dist/ears.js"]
+    init: true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      CONTAINER_ROLE: ears
+      BRAIN_URL: http://brain:3000
+    depends_on:
+      brain:
+        condition: service_healthy
+
+  brain:
+    image: banananet
+    command: ["node", "dist/brain.js"]
+    init: true
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      CONTAINER_ROLE: brain
+    volumes:
+      - ../.claude-bot/.credentials.json:/home/bot/.claude/.credentials.json
+      - ../.claude-bot:/home/bot/.claude
+      - ../sandbox:/sandbox
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
