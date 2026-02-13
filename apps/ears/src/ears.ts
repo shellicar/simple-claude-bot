@@ -1,14 +1,14 @@
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
-import { BrainClient } from './brainClient';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { ParsedReply } from '@simple-claude-bot/shared/parseResponse';
-import { startDiscord } from './platform/discord/startDiscord';
-import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { earsSchema } from '@simple-claude-bot/shared/schema';
-import { buildSystemPrompt } from './systemPrompts';
+import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '@simple-claude-bot/shared/workplay';
+import { BrainClient } from './brainClient';
+import { startDiscord } from './platform/discord/startDiscord';
+import { buildSystemPrompt } from './systemPrompts';
 
 const main = async () => {
   logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
@@ -182,16 +182,21 @@ const main = async () => {
         return;
       }
       logger.info('Prompt command received');
-      processing = brain.unprompted({ prompt: 'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.', systemPrompt }).then(
-        async (response) => {
-          if (response.spoke && response.replies.length > 0 && platformChannel) {
-            await dispatchReplies(platformChannel, response.replies);
-          }
-        },
-        (error) => {
-          logger.error(`Prompt error: ${error}`);
-        },
-      ).finally(() => { processing = undefined; });
+      processing = brain
+        .unprompted({ prompt: 'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.', systemPrompt })
+        .then(
+          async (response) => {
+            if (response.spoke && response.replies.length > 0 && platformChannel) {
+              await dispatchReplies(platformChannel, response.replies);
+            }
+          },
+          (error) => {
+            logger.error(`Prompt error: ${error}`);
+          },
+        )
+        .finally(() => {
+          processing = undefined;
+        });
       return;
     }
 
@@ -201,18 +206,23 @@ const main = async () => {
         return;
       }
       logger.info('Compact command received');
-      processing = brain.compact().then(
-        (response) => {
-          if (response.error) {
-            logger.error(`Compact error: ${response.error}`);
-          } else {
-            logger.info(`Compact result: ${response.result}`);
-          }
-        },
-        (error) => {
-          logger.error(`Compact error: ${error}`);
-        },
-      ).finally(() => { processing = undefined; });
+      processing = brain
+        .compact()
+        .then(
+          (response) => {
+            if (response.error) {
+              logger.error(`Compact error: ${response.error}`);
+            } else {
+              logger.info(`Compact result: ${response.result}`);
+            }
+          },
+          (error) => {
+            logger.error(`Compact error: ${error}`);
+          },
+        )
+        .finally(() => {
+          processing = undefined;
+        });
       return;
     }
 
@@ -226,23 +236,28 @@ const main = async () => {
         return;
       }
       logger.info('Reset command received');
-      processing = platformChannel.fetchHistory(500).then(
-        async (messages) => {
-          try {
-            const response = await brain.reset({ messages, systemPrompt });
-            if (response.error) {
-              logger.error(`Reset error: ${response.error}`);
-            } else {
-              logger.info(`Reset result: ${response.result}`);
+      processing = platformChannel
+        .fetchHistory(500)
+        .then(
+          async (messages) => {
+            try {
+              const response = await brain.reset({ messages, systemPrompt });
+              if (response.error) {
+                logger.error(`Reset error: ${response.error}`);
+              } else {
+                logger.info(`Reset result: ${response.result}`);
+              }
+            } catch (error) {
+              logger.error(`Reset error: ${error}`);
             }
-          } catch (error) {
-            logger.error(`Reset error: ${error}`);
-          }
-        },
-        (error) => {
-          logger.error(`Reset fetch history error: ${error}`);
-        },
-      ).finally(() => { processing = undefined; });
+          },
+          (error) => {
+            logger.error(`Reset fetch history error: ${error}`);
+          },
+        )
+        .finally(() => {
+          processing = undefined;
+        });
       return;
     }
 
@@ -265,18 +280,23 @@ const main = async () => {
         return;
       }
       logger.info('Ping command received');
-      processing = brain.ping().then(
-        (response) => {
-          if (response.error) {
-            logger.error(`Ping error: ${response.error}`);
-          } else {
-            logger.info(`Ping response: ${response.result}`);
-          }
-        },
-        (error) => {
-          logger.error(`Ping error: ${error}`);
-        },
-      ).finally(() => { processing = undefined; });
+      processing = brain
+        .ping()
+        .then(
+          (response) => {
+            if (response.error) {
+              logger.error(`Ping error: ${response.error}`);
+            } else {
+              logger.info(`Ping response: ${response.result}`);
+            }
+          },
+          (error) => {
+            logger.error(`Ping error: ${error}`);
+          },
+        )
+        .finally(() => {
+          processing = undefined;
+        });
       return;
     }
 
@@ -291,18 +311,23 @@ const main = async () => {
         return;
       }
       logger.info(`Direct query: ${prompt}`);
-      processing = brain.direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }) }).then(
-        (response) => {
-          if (response.error) {
-            logger.error(`Direct query error: ${response.error}`);
-          } else {
-            logger.info(`Direct response: ${response.result}`);
-          }
-        },
-        (error) => {
-          logger.error(`Direct query error: ${error}`);
-        },
-      ).finally(() => { processing = undefined; });
+      processing = brain
+        .direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }) })
+        .then(
+          (response) => {
+            if (response.error) {
+              logger.error(`Direct query error: ${response.error}`);
+            } else {
+              logger.info(`Direct response: ${response.result}`);
+            }
+          },
+          (error) => {
+            logger.error(`Direct query error: ${error}`);
+          },
+        )
+        .finally(() => {
+          processing = undefined;
+        });
       return;
     }
 

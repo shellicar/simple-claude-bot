@@ -7,9 +7,9 @@ import '@js-joda/timezone';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { type ParsedReply, parseResponse } from '@simple-claude-bot/shared/parseResponse';
 import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
-import type { SandboxConfig } from './types';
-import { zone } from '@simple-claude-bot/shared/zone';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
+import { zone } from '@simple-claude-bot/shared/zone';
+import type { SandboxConfig } from './types';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
 
@@ -28,8 +28,6 @@ function buildSandboxEnv(): Record<string, string> {
 }
 
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-
-
 
 let claudeDir: string;
 let DISCORD_SESSION_FILE: string;

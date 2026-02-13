@@ -1,6 +1,6 @@
-import type { Message, TextChannel } from 'discord.js';
 import { chunkMessage } from '@simple-claude-bot/shared/chunkMessage';
 import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
+import type { Message, TextChannel } from 'discord.js';
 import { DiscordMessage } from './DiscordMessage.js';
 
 export class DiscordChannel implements PlatformChannel {

@@ -1,5 +1,5 @@
-import type { Message } from 'discord.js';
 import type { PlatformAttachment, PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
+import type { Message } from 'discord.js';
 
 export class DiscordMessage implements PlatformMessage {
   public readonly authorId: string;
