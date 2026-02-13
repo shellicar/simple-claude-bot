@@ -77,7 +77,7 @@ const main = async () => {
 
       const stopTyping = startTyping(channel);
       try {
-        const response = await brain.respond({ messages: batch, systemPrompt });
+        const response = await brain.respond({ messages: batch, systemPrompt, allowedTools: ['WebSearch', 'WebFetch'] });
 
         if (response.error) {
           logger.error(`Brain respond error: ${response.error}`);
@@ -313,7 +313,7 @@ const main = async () => {
       }
       logger.info(`Direct query: ${prompt}`);
       processing = brain
-        .direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }) })
+        .direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }), allowedTools: ['WebSearch', 'WebFetch', 'Bash'] })
         .then(
           (response) => {
             if (response.error) {
