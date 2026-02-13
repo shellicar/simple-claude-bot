@@ -2,7 +2,7 @@ FROM node:22-slim AS base
 
 # Install sandbox dependencies and tools
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bubblewrap socat curl git ca-certificates gpg jq python3 python3-pip python3-venv \
+  && apt-get install -y --no-install-recommends bubblewrap libicu-dev socat curl git ca-certificates gpg jq python3 python3-pip python3-venv \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -13,6 +13,10 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | g
   && apt-get install -y --no-install-recommends gh \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
+
+# Install Bicep CLI
+RUN curl -fsSL https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64 -o /usr/local/bin/bicep \
+  && chmod +x /usr/local/bin/bicep
 
 # Enable pnpm for sandbox use
 RUN corepack enable pnpm
@@ -53,7 +57,7 @@ ENV SANDBOX_DIR=/sandbox
 ENV SANDBOX_ENABLED=true
 ENV CLAUDE_PATH=/usr/local/bin/claude-sandbox
 ENV CLAUDE_CONFIG_DIR=/home/bot/.claude
-ENV SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3"
+ENV SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep"
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["node", "dist/main.js"]
