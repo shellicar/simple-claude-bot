@@ -3,13 +3,13 @@ import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
-import type { PlatformChannel } from '../platform/types';
 import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
-import { earsSchema } from '../earsSchema';
-import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '../workplay.js';
 import { BrainClient } from '../brainClient';
+import { earsSchema } from '../earsSchema';
 import { startDiscord } from '../platform/discord/startDiscord';
+import type { PlatformChannel } from '../platform/types';
 import { buildSystemPrompt } from '../systemPrompts';
+import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '../workplay.js';
 
 const main = async () => {
   logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
