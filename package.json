@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.37",
+    "@anthropic-ai/claude-code": "^2.1.39",
     "@js-joda/core": "^5.7.0",
     "@js-joda/locale_en": "^4.15.3",
     "@js-joda/timezone": "^2.23.0",
