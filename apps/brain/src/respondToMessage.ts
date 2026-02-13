@@ -6,15 +6,13 @@ import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { DirectRequest, ParsedReply, ResetRequest, RespondRequest, UnpromptedRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 import { parseResponse } from './parseResponse';
 import type { SandboxConfig } from './types';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
-
-const SANDBOX_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'] as const;
 
 const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'YARN_VERSION']);
 
@@ -108,7 +106,7 @@ function buildQueryOptions(params: { systemPrompt: string; allowedTools: string[
     pathToClaudeCodeExecutable: claudePath,
     model: 'claude-opus-4-6',
     cwd: sandboxConfig.directory,
-    allowedTools: sandboxEnabled ? [...allowedTools, ...SANDBOX_TOOLS] : allowedTools,
+    allowedTools,
     maxTurns: sandboxEnabled && maxTurns < 3 ? 3 : maxTurns,
     systemPrompt,
     settingSources: ['user'],
@@ -206,7 +204,7 @@ export async function compactSession(): Promise<string> {
   return result;
 }
 
-export async function resetSession(messages: PlatformMessage[], systemPrompt: string, sandboxConfig: SandboxConfig): Promise<string> {
+export async function resetSession(body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
   logger.info('Resetting Discord session...');
 
   // Delete old session
@@ -215,15 +213,15 @@ export async function resetSession(messages: PlatformMessage[], systemPrompt: st
   }
   discordSessionId = undefined;
 
-  logger.info(`Received ${messages.length} messages for session seeding`);
+  logger.info(`Received ${body.messages.length} messages for session seeding`);
 
-  if (messages.length === 0) {
+  if (body.messages.length === 0) {
     logger.warn('No messages found to seed session');
     return 'No messages found to seed session';
   }
 
   // Format messages as text with original display names
-  const history = messages
+  const history = body.messages
     .map((m) => {
       const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
       const prefix = m.authorIsBot ? '[BOT] ' : '';
@@ -234,7 +232,7 @@ export async function resetSession(messages: PlatformMessage[], systemPrompt: st
   const seedPrompt = `system: The following is the recent message history from the Discord channel. Internalize this context — these are the users you've been chatting with and the conversations you've had. Do not respond to these messages, just acknowledge that you have received the context.\n\n${history}`;
 
   const options = buildQueryOptions({
-    systemPrompt,
+    systemPrompt: body.systemPrompt,
     allowedTools: [],
     maxTurns: 1,
     sandboxConfig,
@@ -288,31 +286,31 @@ export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
   return executeQuery('ping', options, () => {});
 }
 
-export async function directQuery(prompt: string, systemPrompt: string, sandboxConfig: SandboxConfig): Promise<string> {
+export async function directQuery(body: DirectRequest, sandboxConfig: SandboxConfig): Promise<string> {
   const options = buildQueryOptions({
-    systemPrompt,
-    allowedTools: ['WebSearch', 'WebFetch', 'Bash'],
+    systemPrompt: body.systemPrompt,
+    allowedTools: body.allowedTools,
     maxTurns: 25,
     sandboxConfig,
     sessionId: directSessionId,
   });
 
-  return executeQuery(prompt, options, saveDirectSession);
+  return executeQuery(body.prompt, options, saveDirectSession);
 }
 
-export async function sendUnprompted(prompt: string, systemPrompt: string, sandboxConfig: SandboxConfig, options?: { allowedTools?: string[]; maxTurns?: number }): Promise<{ replies: ParsedReply[]; spoke: boolean }> {
+export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: SandboxConfig): Promise<{ replies: ParsedReply[]; spoke: boolean }> {
   try {
-    logger.info(`Unprompted: ${prompt}`);
+    logger.info(`Unprompted: ${body.prompt}`);
 
     const sdkOptions = buildQueryOptions({
-      systemPrompt,
-      allowedTools: options?.allowedTools ?? [],
-      maxTurns: options?.maxTurns ?? 1,
+      systemPrompt: body.systemPrompt,
+      allowedTools: body.allowedTools ?? [],
+      maxTurns: body.maxTurns ?? 1,
       sandboxConfig,
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, sdkOptions, saveDiscordSession);
+    const result = await executeQuery(body.prompt, sdkOptions, saveDiscordSession);
 
     if (!result) {
       logger.warn('Empty unprompted response');
@@ -328,8 +326,8 @@ export async function sendUnprompted(prompt: string, systemPrompt: string, sandb
   }
 }
 
-export async function respondToMessages(messages: PlatformMessage[], systemPrompt: string, sandboxConfig: SandboxConfig): Promise<ParsedReply[]> {
-  const contentBlocks = buildContentBlocks(messages);
+export async function respondToMessages(body: RespondRequest, sandboxConfig: SandboxConfig): Promise<ParsedReply[]> {
+  const contentBlocks = buildContentBlocks(body.messages);
   const hasImages = contentBlocks.some((b) => b.type === 'image');
 
   const promptText = contentBlocks
@@ -353,8 +351,8 @@ export async function respondToMessages(messages: PlatformMessage[], systemPromp
     : promptText;
 
   const options = buildQueryOptions({
-    systemPrompt,
-    allowedTools: ['WebSearch', 'WebFetch'],
+    systemPrompt: body.systemPrompt,
+    allowedTools: body.allowedTools,
     maxTurns: 25,
     sandboxConfig,
     sessionId: discordSessionId,

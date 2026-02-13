@@ -43,7 +43,7 @@ function isQuietHours(): boolean {
 
 function buildIdlePrompt(): string {
   const now = Instant.now().atZone(zone).format(timestampFormatter);
-  return `[System: The current time is ${now}. The channel has been quiet for a while. You can say something to the channel, do some work in the sandbox, or do nothing — it's up to you. If you have nothing to say or do, respond with an empty block. Don't force it.]`;
+  return `[System: The current time is ${now}. The channel has been quiet for a while. You can say something to the channel, do some work in the sandbox, or do nothing — it's up to you. Always explain your thinking first — what you considered, why you decided to speak or stay quiet, and what caught your attention (or didn't). Then provide your reply blocks. If you have nothing to say or do, still explain your reasoning before responding with an empty block. Don't force conversation.]`;
 }
 
 async function onTick(config: WorkPlayConfig): Promise<void> {

@@ -12,6 +12,7 @@ export interface ParsedReply {
 export interface RespondRequest {
   readonly messages: PlatformMessage[];
   readonly systemPrompt: string;
+  readonly allowedTools: string[];
 }
 
 export interface RespondResponse {
@@ -35,6 +36,7 @@ export interface UnpromptedResponse {
 export interface DirectRequest {
   readonly prompt: string;
   readonly systemPrompt: string;
+  readonly allowedTools: string[];
 }
 
 export interface DirectResponse {
