@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "tags": ["-lintignore"],
+  "workspaces": {
+    "apps/brain": {
+      "entry": ["src/*.ts", "inject/*.ts"]
+    },
+    "apps/ears": {
+      "entry": ["src/*.ts", "inject/*.ts"]
+    },
+    "apps/config": {
+      "entry": ["src/*.ts", "inject/*.ts"]
+    },
+    "packages/shared": {
+      "entry": ["src/**/*.ts"]
+    }
+  }
+}

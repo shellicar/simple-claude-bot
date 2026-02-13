@@ -5,19 +5,19 @@ import { type Message, type PresenceStatus, type PresenceStatusData, TextChannel
 import { DiscordChannel } from './DiscordChannel.js';
 import { DiscordMessage } from './DiscordMessage.js';
 
-export interface DiscordConfig {
+interface DiscordConfig {
   readonly guildId: string;
   readonly channelName: string;
 }
 
-export interface DiscordReadyInfo {
+interface DiscordReadyInfo {
   readonly channel: PlatformChannel;
   readonly botUserId?: string;
   readonly botUsername?: string;
   readonly lastMessageTimestamp?: number;
 }
 
-export interface DiscordHandle {
+interface DiscordHandle {
   destroy(): void;
   setPresence(status: PresenceStatusData): void;
 }
