@@ -61,7 +61,7 @@
   },
   "overrides": [
     {
-      "includes": ["**/logger.ts"],
+      "includes": ["**/logger.ts", "**/build.ts"],
       "linter": {
         "rules": {
           "suspicious": {

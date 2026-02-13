@@ -1,0 +1,8 @@
+{
+  "name": "@simple-claude-bot/brain",
+  "type": "module",
+  "scripts": {
+    "build": "tsx build.ts",
+    "type-check": "tsc -p tsconfig.check.json"
+  }
+}

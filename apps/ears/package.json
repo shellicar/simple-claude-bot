@@ -1,0 +1,14 @@
+{
+  "name": "@simple-claude-bot/ears",
+  "type": "module",
+  "scripts": {
+    "build": "tsx build.ts",
+    "type-check": "tsc -p tsconfig.check.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@simple-claude-bot/shared": "workspace:^"
+  }
+}

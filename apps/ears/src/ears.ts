@@ -1,14 +1,14 @@
 import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
-import { BrainClient } from './brainClient.js';
-import { logger } from './logger.js';
-import type { ParsedReply } from './parseResponse.js';
-import { startDiscord } from './platform/discord/startDiscord.js';
-import type { PlatformChannel, PlatformMessage } from './platform/types.js';
-import { earsSchema } from './schema.js';
-import { buildSystemPrompt } from './systemPrompts.js';
-import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from './workplay.js';
+import { BrainClient } from '@simple-claude-bot/shared/brainClient';
+import { logger } from '@simple-claude-bot/shared/logger';
+import type { ParsedReply } from '@simple-claude-bot/shared/parseResponse';
+import { startDiscord } from '@simple-claude-bot/shared/platform/discord/startDiscord';
+import type { PlatformChannel, PlatformMessage } from '@simple-claude-bot/shared/platform/types';
+import { earsSchema } from '@simple-claude-bot/shared/schema';
+import { buildSystemPrompt } from '@simple-claude-bot/shared/systemPrompts';
+import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '@simple-claude-bot/shared/workplay';
 
 const main = async () => {
   logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);

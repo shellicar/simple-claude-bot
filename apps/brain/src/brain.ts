@@ -4,10 +4,10 @@ import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { Hono } from 'hono';
-import { logger } from './logger.js';
-import { type SandboxConfig, compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from './respondToMessage.js';
-import { brainSchema } from './schema.js';
-import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from './shared/types.js';
+import { logger } from '@simple-claude-bot/shared/logger';
+import { type SandboxConfig, compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from '@simple-claude-bot/shared/respondToMessage';
+import { brainSchema } from '@simple-claude-bot/shared/schema';
+import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 
 const main = async () => {
   logger.info(`Starting brain v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);

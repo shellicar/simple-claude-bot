@@ -11,7 +11,7 @@ const plugins = [
   versionPlugin({}),
 ];
 
-const entryPoints = await glob('./src/{ears,brain,setup,verify}.ts');
+const entryPoints = await glob('./src/*.ts');
 const inject = await glob('./inject/*.ts');
 
 const ctx = await esbuild.context({
