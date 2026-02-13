@@ -1,14 +1,13 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { setTimeout } from 'node:timers/promises';
 import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { DateTimeFormatter, Instant, ZoneId } from '@js-joda/core';
 import { Locale } from '@js-joda/locale_en';
 import '@js-joda/timezone';
 import { logger } from './logger.js';
-import { parseResponse } from './parseResponse.js';
-import type { PlatformChannel, PlatformMessage } from './platform/types.js';
+import { type ParsedReply, parseResponse } from './parseResponse.js';
+import type { PlatformMessage } from './platform/types.js';
 import { buildSystemPrompt } from './systemPrompts.js';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
@@ -131,24 +130,11 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
   return 'subtype' in m;
 };
 
-interface ExecuteQueryOptions {
-  channel?: PlatformChannel;
-  showTyping?: boolean;
-}
-
-async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void, queryOptions?: ExecuteQueryOptions): Promise<string> {
-  const channel = queryOptions?.channel;
-  const showTyping = queryOptions?.showTyping ?? true;
+async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
   const startTime = Date.now();
-  if (channel && showTyping) {
-    await channel.sendTyping();
-  }
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
     logger.debug(`Still waiting after ${elapsed}s...`);
-    if (showTyping) {
-      channel?.sendTyping();
-    }
   }, 5000);
 
   logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
@@ -203,10 +189,10 @@ function saveDirectSession(id: string): void {
   writeFileSync(DIRECT_SESSION_FILE, id);
 }
 
-export async function compactSession(): Promise<void> {
+export async function compactSession(): Promise<string> {
   if (!discordSessionId) {
     logger.warn('No session to compact');
-    return;
+    return 'No session to compact';
   }
 
   logger.info(`Compacting session ${discordSessionId}...`);
@@ -223,9 +209,10 @@ export async function compactSession(): Promise<void> {
 
   writeFileSync(COMPACT_FILE, result);
   logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
+  return result;
 }
 
-export async function resetSession(channel: PlatformChannel, _systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
+export async function resetSession(messages: PlatformMessage[], systemPrompt: string, sandboxConfig: SandboxConfig): Promise<string> {
   logger.info('Resetting Discord session...');
 
   // Delete old session
@@ -234,14 +221,11 @@ export async function resetSession(channel: PlatformChannel, _systemPrompt: stri
   }
   discordSessionId = undefined;
 
-  // Fetch recent message history from the channel
-  const messages = await channel.fetchHistory(500);
-
-  logger.info(`Fetched ${messages.length} messages for session seeding`);
+  logger.info(`Received ${messages.length} messages for session seeding`);
 
   if (messages.length === 0) {
     logger.warn('No messages found to seed session');
-    return;
+    return 'No messages found to seed session';
   }
 
   // Format messages as text with original display names
@@ -256,7 +240,7 @@ export async function resetSession(channel: PlatformChannel, _systemPrompt: stri
   const seedPrompt = `system: The following is the recent message history from the Discord channel. Internalize this context — these are the users you've been chatting with and the conversations you've had. Do not respond to these messages, just acknowledge that you have received the context.\n\n${history}`;
 
   const options = buildQueryOptions({
-    systemPrompt: buildSystemPrompt({ type: 'reset' }),
+    systemPrompt,
     allowedTools: [],
     maxTurns: 1,
     sandboxConfig,
@@ -265,6 +249,7 @@ export async function resetSession(channel: PlatformChannel, _systemPrompt: stri
 
   const result = await executeQuery(seedPrompt, options, saveDiscordSession);
   logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
+  return result;
 }
 
 function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
@@ -298,6 +283,17 @@ function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
   return blocks;
 }
 
+export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
+  const options = buildQueryOptions({
+    systemPrompt: 'Respond with exactly: pong',
+    allowedTools: [],
+    maxTurns: 1,
+    sandboxConfig,
+  });
+
+  return executeQuery('ping', options, () => {});
+}
+
 export async function directQuery(prompt: string, sandboxConfig: SandboxConfig): Promise<string> {
   const options = buildQueryOptions({
     systemPrompt: buildSystemPrompt({ type: 'direct' }),
@@ -310,7 +306,7 @@ export async function directQuery(prompt: string, sandboxConfig: SandboxConfig):
   return executeQuery(prompt, options, saveDirectSession);
 }
 
-export async function sendUnprompted(prompt: string, channel: PlatformChannel, systemPrompt: string, sandboxConfig: SandboxConfig, options?: { allowedTools?: string[]; maxTurns?: number; showTyping?: boolean }): Promise<boolean> {
+export async function sendUnprompted(prompt: string, systemPrompt: string, sandboxConfig: SandboxConfig, options?: { allowedTools?: string[]; maxTurns?: number }): Promise<{ replies: ParsedReply[]; spoke: boolean }> {
   try {
     logger.info(`Unprompted: ${prompt}`);
 
@@ -322,103 +318,60 @@ export async function sendUnprompted(prompt: string, channel: PlatformChannel, s
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(prompt, sdkOptions, saveDiscordSession, { channel, showTyping: options?.showTyping });
+    const result = await executeQuery(prompt, sdkOptions, saveDiscordSession);
 
     if (!result) {
       logger.warn('Empty unprompted response');
-      return false;
+      return { replies: [], spoke: false };
     }
 
     const replies = parseResponse(result);
-
-    if (replies.length === 0) {
-      return false;
-    }
-
-    for (const reply of replies) {
-      if (reply.delay) {
-        await setTimeout(reply.delay);
-      }
-      await channel.sendMessage(reply.message);
-    }
-    return true;
+    return { replies, spoke: replies.length > 0 };
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
     discordSessionId = undefined;
-    return false;
+    return { replies: [], spoke: false };
   }
 }
 
-export async function respondToMessages(messages: PlatformMessage[], channel: PlatformChannel, systemPrompt: string, sandboxConfig: SandboxConfig): Promise<void> {
-  try {
-    const contentBlocks = buildContentBlocks(messages);
-    const hasImages = contentBlocks.some((b) => b.type === 'image');
+export async function respondToMessages(messages: PlatformMessage[], systemPrompt: string, sandboxConfig: SandboxConfig): Promise<ParsedReply[]> {
+  const contentBlocks = buildContentBlocks(messages);
+  const hasImages = contentBlocks.some((b) => b.type === 'image');
 
-    const promptText = contentBlocks
-      .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n');
-    logger.info(`Prompt: ${promptText}`);
+  const promptText = contentBlocks
+    .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+    .map((b) => b.text)
+    .join('\n');
+  logger.info(`Prompt: ${promptText}`);
 
-    const prompt = hasImages
-      ? (async function* () {
-          yield {
-            type: 'user',
-            message: {
-              role: 'user',
-              content: contentBlocks,
-            },
-            parent_tool_use_id: null,
-            session_id: discordSessionId ?? '',
-          } satisfies SDKUserMessage;
-        })()
-      : promptText;
+  const prompt = hasImages
+    ? (async function* () {
+        yield {
+          type: 'user',
+          message: {
+            role: 'user',
+            content: contentBlocks,
+          },
+          parent_tool_use_id: null,
+          session_id: discordSessionId ?? '',
+        } satisfies SDKUserMessage;
+      })()
+    : promptText;
 
-    const options = buildQueryOptions({
-      systemPrompt,
-      allowedTools: ['WebSearch', 'WebFetch'],
-      maxTurns: 25,
-      sandboxConfig,
-      sessionId: discordSessionId,
-    });
+  const options = buildQueryOptions({
+    systemPrompt,
+    allowedTools: ['WebSearch', 'WebFetch'],
+    maxTurns: 25,
+    sandboxConfig,
+    sessionId: discordSessionId,
+  });
 
-    const result = await executeQuery(prompt, options, saveDiscordSession, { channel });
+  const result = await executeQuery(prompt, options, saveDiscordSession);
 
-    if (!result) {
-      logger.warn('Empty response from Claude');
-      await channel.sendMessage("Sorry, I didn't get a response. Please try again.");
-      return;
-    }
-
-    const replies = parseResponse(result);
-
-    if (replies.length === 0) {
-      logger.debug('No replies to send');
-      return;
-    }
-
-    const messagesByUserId = new Map<string, PlatformMessage>();
-    for (const m of messages) {
-      messagesByUserId.set(m.authorId, m);
-    }
-
-    for (const reply of replies) {
-      if (reply.delay) {
-        logger.debug(`Delaying ${reply.delay}ms before next message`);
-        await setTimeout(reply.delay);
-      }
-
-      const target = reply.replyTo && reply.ping ? messagesByUserId.get(reply.replyTo) : undefined;
-
-      if (target) {
-        await channel.replyTo(target, reply.message);
-      } else {
-        await channel.sendMessage(reply.message);
-      }
-    }
-  } catch (error) {
-    logger.error(`Error processing message: ${error}`);
-    discordSessionId = undefined;
-    await channel.sendMessage('Sorry, I encountered an error processing your message.');
+  if (!result) {
+    logger.warn('Empty response from Claude');
+    return [];
   }
+
+  return parseResponse(result);
 }

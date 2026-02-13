@@ -1,4 +1,4 @@
-interface ParsedReply {
+export interface ParsedReply {
   replyTo?: string;
   ping?: boolean;
   delay?: number;

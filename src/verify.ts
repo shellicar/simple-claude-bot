@@ -2,7 +2,7 @@ import { env } from 'node:process';
 import { ChannelType, PermissionFlagsBits, REST, Routes } from 'discord.js';
 import type { APIGuildChannel, RESTAPIPartialCurrentUserGuild } from 'discord-api-types/v10';
 import { logger } from './logger.js';
-import { botSchema, discordSchema } from './schema.js';
+import { earsSchema } from './schema.js';
 
 const REQUIRED_PERMISSIONS = [
   { name: 'ViewChannel', bit: PermissionFlagsBits.ViewChannel },
@@ -11,8 +11,7 @@ const REQUIRED_PERMISSIONS = [
 ] as const;
 
 const verify = async () => {
-  const { DISCORD_TOKEN } = discordSchema.parse(env);
-  const { CLAUDE_CHANNEL, DISCORD_GUILD } = botSchema.parse(env);
+  const { DISCORD_TOKEN, CLAUDE_CHANNEL, DISCORD_GUILD } = earsSchema.parse(env);
 
   logger.info('Discord Bot Verification');
   logger.info('='.repeat(50));

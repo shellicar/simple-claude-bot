@@ -1,8 +1,8 @@
 import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
 import { logger } from './logger.js';
-import type { PlatformChannel } from './platform/types.js';
-import { type SandboxConfig, sendUnprompted, timestampFormatter, zone } from './respondToMessage.js';
+import type { ParsedReply } from './parseResponse.js';
+import { timestampFormatter, zone } from './respondToMessage.js';
 
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
 const MAX_PROBABILITY = 0.5;
@@ -12,9 +12,8 @@ const QUIET_HOUR_START = 22;
 const QUIET_HOUR_END = 10;
 
 interface WorkPlayConfig {
-  channel: PlatformChannel;
-  systemPrompt: string;
-  sandboxConfig: SandboxConfig;
+  sandboxEnabled: boolean;
+  onIdle: (prompt: string, options: { allowedTools?: string[]; maxTurns?: number }) => Promise<{ replies: ParsedReply[]; spoke: boolean }>;
   isProcessing: () => boolean;
   setProcessing: (p: Promise<void>) => void;
   setPresence?: (status: 'online' | 'idle') => void;
@@ -76,9 +75,9 @@ async function onTick(config: WorkPlayConfig): Promise<void> {
 
 function sendIdlePrompt(config: WorkPlayConfig): void {
   const prompt = buildIdlePrompt();
-  const sandboxEnabled = config.sandboxConfig.enabled;
+  const sandboxEnabled = config.sandboxEnabled;
 
-  const task = sendUnprompted(prompt, config.channel, config.systemPrompt, config.sandboxConfig, { allowedTools: sandboxEnabled ? SANDBOX_TOOLS : [], maxTurns: sandboxEnabled ? 25 : 1, showTyping: false }).then((spoke) => {
+  const task = config.onIdle(prompt, { allowedTools: sandboxEnabled ? SANDBOX_TOOLS : [], maxTurns: sandboxEnabled ? 25 : 1 }).then(({ spoke }) => {
     logger.info(`WorkPlay: idle action complete (spoke=${spoke})`);
   });
 

@@ -2,7 +2,7 @@ import { env } from 'node:process';
 import { PermissionFlagsBits, REST, Routes } from 'discord.js';
 import { type APIApplication, ApplicationFlags } from 'discord-api-types/v10';
 import { logger } from './logger.js';
-import { botSchema, discordSchema } from './schema.js';
+import { earsSchema } from './schema.js';
 
 const REQUIRED_PERMISSIONS = [
   { name: 'ViewChannel', bit: PermissionFlagsBits.ViewChannel },
@@ -13,8 +13,7 @@ const REQUIRED_PERMISSIONS = [
 const REQUIRED_PERMISSION_BITS = REQUIRED_PERMISSIONS.reduce((acc, p) => acc | p.bit, 0n);
 
 const setup = async () => {
-  const { DISCORD_TOKEN } = discordSchema.parse(env);
-  const { CLAUDE_CHANNEL } = botSchema.parse(env);
+  const { DISCORD_TOKEN, CLAUDE_CHANNEL } = earsSchema.parse(env);
 
   logger.info('Discord Bot Setup Verification');
   logger.info('='.repeat(50));
