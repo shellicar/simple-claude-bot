@@ -1,6 +1,6 @@
 import { env } from 'node:process';
-import { logger } from '@simple-claude-bot/shared/logger';
 import { earsSchema } from '@simple-claude-bot/ears/earsSchema';
+import { logger } from '@simple-claude-bot/shared/logger';
 import { ChannelType, PermissionFlagsBits, REST, Routes } from 'discord.js';
 import type { APIGuildChannel, RESTAPIPartialCurrentUserGuild } from 'discord-api-types/v10';
 
