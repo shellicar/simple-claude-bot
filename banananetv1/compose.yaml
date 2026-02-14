@@ -10,6 +10,7 @@ services:
     restart: unless-stopped
     env_file: ../.env
     environment:
+      TZ: Australia/Melbourne
       BRAIN_URL: http://brain:3000
     depends_on:
       brain:
@@ -23,6 +24,8 @@ services:
     init: true
     restart: unless-stopped
     env_file: ../.env
+    environment:
+      TZ: Australia/Melbourne
     volumes:
       - ../.claude-bot/.credentials.json:/home/bot/.claude/.credentials.json
       - ../.claude-bot:/home/bot/.claude
