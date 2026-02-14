@@ -9,6 +9,7 @@ import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/
 import type { DirectRequest, ParsedReply, ResetRequest, RespondRequest, UnpromptedRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
+import { type AuditEntry, writeAuditEntry } from './auditLog';
 import { parseResponse } from './parseResponse';
 import type { SandboxConfig } from './types';
 
@@ -122,7 +123,7 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
   return 'subtype' in m;
 };
 
-async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
+async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
   const startTime = Date.now();
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -132,6 +133,8 @@ async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, opti
   logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
 
   let result = '';
+  let sessionId: string | undefined;
+  let model: string | undefined;
   try {
     const q = query({ prompt, options });
 
@@ -141,6 +144,8 @@ async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, opti
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
+        sessionId = msg.session_id;
+        model = msg.model;
         onSessionId(msg.session_id);
       }
       if (msg.type === 'tool_use_summary') {
@@ -148,6 +153,17 @@ async function executeQuery(prompt: string | AsyncIterable<SDKUserMessage>, opti
       }
       if (msg.type === 'result') {
         logger.info(`SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`);
+        writeAuditEntry({
+          timestamp: new Date().toISOString(),
+          endpoint,
+          sessionId,
+          costUsd: msg.total_cost_usd,
+          inputTokens: msg.usage.input_tokens,
+          outputTokens: msg.usage.output_tokens,
+          turns: msg.num_turns,
+          durationMs: msg.duration_ms,
+          model: model ?? 'unknown',
+        } satisfies AuditEntry);
         if (msg.subtype === 'success') {
           result = msg.result;
         } else {
@@ -197,7 +213,7 @@ export async function compactSession(): Promise<string> {
     resume: discordSessionId,
   } satisfies Options;
 
-  const result = await executeQuery('/compact', options, saveDiscordSession);
+  const result = await executeQuery('/compact', '/compact', options, saveDiscordSession);
 
   writeFileSync(COMPACT_FILE, result);
   logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
@@ -239,7 +255,7 @@ export async function resetSession(body: ResetRequest, sandboxConfig: SandboxCon
     sessionId: undefined,
   });
 
-  const result = await executeQuery(seedPrompt, options, saveDiscordSession);
+  const result = await executeQuery('/reset', seedPrompt, options, saveDiscordSession);
   logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
   return result;
 }
@@ -283,7 +299,7 @@ export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
     sandboxConfig,
   });
 
-  return executeQuery('ping', options, () => {});
+  return executeQuery('/ping', 'ping', options, () => {});
 }
 
 export async function directQuery(body: DirectRequest, sandboxConfig: SandboxConfig): Promise<string> {
@@ -295,7 +311,7 @@ export async function directQuery(body: DirectRequest, sandboxConfig: SandboxCon
     sessionId: directSessionId,
   });
 
-  return executeQuery(body.prompt, options, saveDirectSession);
+  return executeQuery('/direct', body.prompt, options, saveDirectSession);
 }
 
 export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: SandboxConfig): Promise<{ replies: ParsedReply[]; spoke: boolean }> {
@@ -310,7 +326,7 @@ export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: San
       sessionId: discordSessionId,
     });
 
-    const result = await executeQuery(body.prompt, sdkOptions, saveDiscordSession);
+    const result = await executeQuery('/unprompted', body.prompt, sdkOptions, saveDiscordSession);
 
     if (!result) {
       logger.warn('Empty unprompted response');
@@ -358,7 +374,7 @@ export async function respondToMessages(body: RespondRequest, sandboxConfig: San
     sessionId: discordSessionId,
   });
 
-  const result = await executeQuery(prompt, options, saveDiscordSession);
+  const result = await executeQuery('/respond', prompt, options, saveDiscordSession);
 
   if (!result) {
     logger.warn('Empty response from Claude');

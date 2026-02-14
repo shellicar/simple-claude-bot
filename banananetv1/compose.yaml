@@ -30,6 +30,7 @@ services:
       - ../.claude-bot/.credentials.json:/home/bot/.claude/.credentials.json
       - ../.claude-bot:/home/bot/.claude
       - ../sandbox:/sandbox
+      - ../.claude-bot-audit:/audit
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 5s
