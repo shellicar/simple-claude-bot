@@ -15,7 +15,7 @@ import type { SandboxConfig } from './types';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
 
-const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'YARN_VERSION']);
+const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'BANANABOT_BUILD_TIME', 'BANANABOT_BUILD_HASH']);
 
 function buildSandboxEnv(): Record<string, string> {
   const env: Record<string, string> = {};

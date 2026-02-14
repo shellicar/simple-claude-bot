@@ -14,7 +14,9 @@ import { compactSession, directQuery, initSessionPaths, pingSDK, resetSession, r
 import type { SandboxConfig } from '../types';
 
 const main = async () => {
-  logger.info(`Starting brain v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
+  const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
+  const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
+  logger.info(`Starting brain v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
 
   const { CLAUDE_CONFIG_DIR, SANDBOX_ENABLED, SANDBOX_DIR, AUDIT_DIR } = brainSchema.parse(env);
 

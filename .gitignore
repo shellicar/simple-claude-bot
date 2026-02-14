@@ -1,4 +1,4 @@
-.env
+*.env
 .bot.lock
 .bot.*session
 conversation.json

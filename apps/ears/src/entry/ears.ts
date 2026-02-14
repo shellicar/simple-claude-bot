@@ -12,7 +12,9 @@ import { buildSystemPrompt } from '../systemPrompts';
 import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '../workplay.js';
 
 const main = async () => {
-  logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
+  const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
+  const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
+  logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
 
   let processing: Promise<void> | undefined;
   const messageQueue: PlatformMessage[] = [];
@@ -163,7 +165,9 @@ const main = async () => {
     }
 
     if (trimmed === '/version') {
-      logger.info(`v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
+      const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
+      const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
+      logger.info(`v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
       return;
     }
 
