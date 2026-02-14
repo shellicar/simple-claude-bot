@@ -7,6 +7,7 @@ import { logger } from '@simple-claude-bot/shared/logger';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import { ZodError } from 'zod';
+import { initAuditLog } from '../auditLog';
 import { brainSchema } from '../brainSchema';
 import { directRequestSchema, resetRequestSchema, respondRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
 import { compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from '../respondToMessage';
@@ -15,9 +16,10 @@ import type { SandboxConfig } from '../types';
 const main = async () => {
   logger.info(`Starting brain v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
 
-  const { CLAUDE_CONFIG_DIR, SANDBOX_ENABLED, SANDBOX_DIR } = brainSchema.parse(env);
+  const { CLAUDE_CONFIG_DIR, SANDBOX_ENABLED, SANDBOX_DIR, AUDIT_DIR } = brainSchema.parse(env);
 
   initSessionPaths(CLAUDE_CONFIG_DIR);
+  initAuditLog(AUDIT_DIR);
 
   const sandboxConfig: SandboxConfig = {
     enabled: SANDBOX_ENABLED === 'true',

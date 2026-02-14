@@ -7,4 +7,5 @@ export const brainSchema = z.object({
   SANDBOX_ENABLED: z.string().default('false'),
   SANDBOX_DIR: z.string().default('./sandbox'),
   SANDBOX_COMMANDS: z.string().default(''),
+  AUDIT_DIR: z.string().default('/audit'),
 });
