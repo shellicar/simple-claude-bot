@@ -23,10 +23,10 @@ const main = async () => {
   initSessionPaths(CLAUDE_CONFIG_DIR);
   initAuditLog(AUDIT_DIR);
 
-  const sandboxConfig: SandboxConfig = {
-    enabled: SANDBOX_ENABLED === 'true',
+  const sandboxConfig = {
+    enabled: SANDBOX_ENABLED,
     directory: resolve(SANDBOX_DIR),
-  };
+  } satisfies SandboxConfig;
 
   mkdirSync(sandboxConfig.directory, { recursive: true });
   logger.info(`Sandbox ${sandboxConfig.enabled ? 'enabled' : 'disabled'} (cwd: ${sandboxConfig.directory})`);
