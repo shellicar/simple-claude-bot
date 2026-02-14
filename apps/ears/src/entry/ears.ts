@@ -5,6 +5,8 @@ import { logger } from '@simple-claude-bot/shared/logger';
 import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
 import { BrainClient } from '../brainClient';
+import type { CommandContext } from '../commands';
+import { dispatchCommand } from '../commands';
 import { earsSchema } from '../earsSchema';
 import { startDiscord } from '../platform/discord/startDiscord';
 import type { PlatformChannel } from '../platform/types';
@@ -19,16 +21,11 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: PlatformMessage[] = [];
 
-  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env);
+  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env, { reportInput: true });
 
   const brain = new BrainClient(BRAIN_URL);
-  const sandboxEnabled = SANDBOX_ENABLED === 'true';
-
-  const botAliases = BOT_ALIASES
-    ? BOT_ALIASES.split(',')
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : [];
+  const sandboxEnabled = SANDBOX_ENABLED;
+  const botAliases = BOT_ALIASES;
 
   let platformChannel: PlatformChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxEnabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
@@ -150,225 +147,24 @@ const main = async () => {
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 
+  const commandCtx = {
+    brain,
+    handle,
+    dispatchReplies,
+    stopWorkPlay,
+    triggerWorkPlay,
+    getProcessing: () => processing,
+    setProcessing: (p) => {
+      processing = p.finally(() => {
+        processing = undefined;
+      });
+    },
+    getPlatformChannel: () => platformChannel,
+    getSystemPrompt: () => systemPrompt,
+  } satisfies CommandContext;
+
   const rl = createInterface({ input: process.stdin });
-  rl.on('line', (line) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    if (trimmed === '/shutdown') {
-      logger.info('Shutdown command received');
-      stopWorkPlay();
-      handle.destroy();
-      process.exit(0);
-    }
-
-    if (trimmed === '/version') {
-      const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
-      const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
-      logger.info(`v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
-      return;
-    }
-
-    if (trimmed === '/workplay') {
-      logger.info('WorkPlay manual trigger received');
-      triggerWorkPlay();
-      return;
-    }
-
-    if (trimmed === '/prompt') {
-      if (!platformChannel) {
-        logger.warn('Bot channel not found yet');
-        return;
-      }
-      if (processing) {
-        logger.warn('Busy — ignoring /prompt');
-        return;
-      }
-      logger.info('Prompt command received');
-      processing = brain
-        .unprompted({ prompt: 'Share a random interesting thought, fun fact, shower thought, or observation. Be concise and conversational.', systemPrompt })
-        .then(
-          async (response) => {
-            if (response.spoke && response.replies.length > 0 && platformChannel) {
-              await dispatchReplies(platformChannel, response.replies);
-            }
-          },
-          (error) => {
-            logger.error(`Prompt error: ${error}`);
-          },
-        )
-        .finally(() => {
-          processing = undefined;
-        });
-      return;
-    }
-
-    if (trimmed === '/compact') {
-      if (processing) {
-        logger.warn('Busy — ignoring /compact');
-        return;
-      }
-      logger.info('Compact command received');
-      processing = brain
-        .compact()
-        .then(
-          (response) => {
-            if (response.error) {
-              logger.error(`Compact error: ${response.error}`);
-            } else {
-              logger.info(`Compact result: ${response.result}`);
-            }
-          },
-          (error) => {
-            logger.error(`Compact error: ${error}`);
-          },
-        )
-        .finally(() => {
-          processing = undefined;
-        });
-      return;
-    }
-
-    if (trimmed === '/reset' || trimmed.startsWith('/reset ')) {
-      if (!platformChannel) {
-        logger.warn('Bot channel not found yet');
-        return;
-      }
-      if (processing) {
-        logger.warn('Busy — ignoring /reset');
-        return;
-      }
-      const countArg = trimmed.slice('/reset'.length).trim();
-      const count = countArg ? Number.parseInt(countArg, 10) : 500;
-      if (Number.isNaN(count) || count < 1) {
-        logger.warn(`Invalid reset count: ${countArg}`);
-        return;
-      }
-      logger.info(`Reset command received (fetching ${count} messages)`);
-      processing = platformChannel
-        .fetchHistory(count)
-        .then(
-          async (messages) => {
-            try {
-              const response = await brain.reset({ messages, systemPrompt });
-              if (response.error) {
-                logger.error(`Reset error: ${response.error}`);
-              } else {
-                logger.info(`Reset result: ${response.result}`);
-              }
-            } catch (error) {
-              logger.error(`Reset error: ${error}`);
-            }
-          },
-          (error) => {
-            logger.error(`Reset fetch history error: ${error}`);
-          },
-        )
-        .finally(() => {
-          processing = undefined;
-        });
-      return;
-    }
-
-    if (trimmed === '/session' || trimmed.startsWith('/session ')) {
-      const sessionArg = trimmed.slice('/session'.length).trim();
-      if (sessionArg) {
-        logger.info(`Setting session to: ${sessionArg}`);
-        brain.setSession(sessionArg).then(
-          (response) => {
-            logger.info(`Session set to: ${response.sessionId}`);
-          },
-          (error) => {
-            logger.error(`Set session error: ${error}`);
-          },
-        );
-      } else {
-        brain.getSession().then(
-          (response) => {
-            logger.info(`Current session: ${response.sessionId ?? 'none'}`);
-          },
-          (error) => {
-            logger.error(`Get session error: ${error}`);
-          },
-        );
-      }
-      return;
-    }
-
-    if (trimmed === '/health') {
-      logger.info('Health check command received');
-      brain.health().then(
-        (response) => {
-          logger.info(`Health: ${response.status}`);
-        },
-        (error) => {
-          logger.error(`Health check error: ${error}`);
-        },
-      );
-      return;
-    }
-
-    if (trimmed === '/ping') {
-      if (processing) {
-        logger.warn('Busy — ignoring /ping');
-        return;
-      }
-      logger.info('Ping command received');
-      processing = brain
-        .ping()
-        .then(
-          (response) => {
-            if (response.error) {
-              logger.error(`Ping error: ${response.error}`);
-            } else {
-              logger.info(`Ping response: ${response.result}`);
-            }
-          },
-          (error) => {
-            logger.error(`Ping error: ${error}`);
-          },
-        )
-        .finally(() => {
-          processing = undefined;
-        });
-      return;
-    }
-
-    if (trimmed.startsWith('/direct ')) {
-      const prompt = trimmed.slice('/direct '.length).trim();
-      if (!prompt) {
-        logger.warn('No prompt provided for /direct');
-        return;
-      }
-      if (processing) {
-        logger.warn('Busy — ignoring /direct');
-        return;
-      }
-      logger.info(`Direct query: ${prompt}`);
-      processing = brain
-        .direct({ prompt, systemPrompt: buildSystemPrompt({ type: 'direct' }), allowedTools: ['WebSearch', 'WebFetch', 'Bash'] })
-        .then(
-          (response) => {
-            if (response.error) {
-              logger.error(`Direct query error: ${response.error}`);
-            } else {
-              logger.info(`Direct response: ${response.result}`);
-            }
-          },
-          (error) => {
-            logger.error(`Direct query error: ${error}`);
-          },
-        )
-        .finally(() => {
-          processing = undefined;
-        });
-      return;
-    }
-
-    logger.warn(`Unknown command: ${trimmed}`);
-  });
+  rl.on('line', (line) => dispatchCommand(commandCtx, line));
 };
 
 await main();
