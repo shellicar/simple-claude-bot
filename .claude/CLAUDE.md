@@ -9,7 +9,7 @@ A Discord bot that provides Claude AI chat in a dedicated channel using the Clau
 Turborepo monorepo with separate apps communicating via HTTP:
 
 - **`apps/ears`** — Discord gateway. Listens for messages, manages typing indicators, dispatches replies. Lightweight, no Claude SDK dependency.
-- **`apps/brain`** — Hono HTTP server wrapping the Claude Agent SDK. Handles `/respond`, `/unprompted`, `/direct`, `/compact`, `/reset`, `/ping` endpoints. Heavy image with Claude Code subprocess and sandbox tools.
+- **`apps/brain`** — Hono HTTP server wrapping the Claude Agent SDK. Handles `/respond`, `/unprompted`, `/direct`, `/compact`, `/reset`, `/ping`, `/session`, `/health` endpoints. Heavy image with Claude Code subprocess and sandbox tools.
 - **`apps/config`** — Discord bot setup and verification tools. `setup` checks intents and generates an invite URL; `verify` confirms guild membership, permissions, and channel existence.
 - **`packages/shared`** — Shared types, logger, and platform interfaces.
 
@@ -46,6 +46,7 @@ Deployment: `banananetv1/compose.yaml` runs brain and ears as separate container
 - `SANDBOX_ENABLED` — Optional. Enable sandbox tools (default: "false")
 - `SANDBOX_DIR` — Optional. Sandbox working directory (default: "./sandbox")
 - `SANDBOX_COMMANDS` — Optional. CLI commands available in sandbox
+- `AUDIT_DIR` — Optional. Audit log directory (default: "/audit")
 
 ## Commands
 
