@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
+import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKResultSuccess, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
 import { Instant } from '@js-joda/core';
 import '@js-joda/timezone';
@@ -123,6 +123,10 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
   return 'subtype' in m;
 };
 
+function isRateLimited(msg: SDKResultSuccess): boolean {
+  return msg.total_cost_usd === 0 && msg.usage.input_tokens === 0 && msg.usage.output_tokens === 0;
+}
+
 async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
   const startTime = Date.now();
   const timer = setInterval(() => {
@@ -165,6 +169,10 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
           model: model ?? 'unknown',
         } satisfies AuditEntry);
         if (msg.subtype === 'success') {
+          if (isRateLimited(msg)) {
+            logger.warn(`Rate limited: ${msg.result}`);
+            throw new Error(`Rate limited: ${msg.result}`);
+          }
           result = msg.result;
         } else {
           logger.error(`SDK result failure: ${JSON.stringify(msg)}`);
