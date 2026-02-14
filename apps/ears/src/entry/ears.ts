@@ -231,7 +231,7 @@ const main = async () => {
       return;
     }
 
-    if (trimmed === '/reset') {
+    if (trimmed === '/reset' || trimmed.startsWith('/reset ')) {
       if (!platformChannel) {
         logger.warn('Bot channel not found yet');
         return;
@@ -240,9 +240,15 @@ const main = async () => {
         logger.warn('Busy — ignoring /reset');
         return;
       }
-      logger.info('Reset command received');
+      const countArg = trimmed.slice('/reset'.length).trim();
+      const count = countArg ? Number.parseInt(countArg, 10) : 500;
+      if (Number.isNaN(count) || count < 1) {
+        logger.warn(`Invalid reset count: ${countArg}`);
+        return;
+      }
+      logger.info(`Reset command received (fetching ${count} messages)`);
       processing = platformChannel
-        .fetchHistory(500)
+        .fetchHistory(count)
         .then(
           async (messages) => {
             try {
@@ -263,6 +269,31 @@ const main = async () => {
         .finally(() => {
           processing = undefined;
         });
+      return;
+    }
+
+    if (trimmed === '/session' || trimmed.startsWith('/session ')) {
+      const sessionArg = trimmed.slice('/session'.length).trim();
+      if (sessionArg) {
+        logger.info(`Setting session to: ${sessionArg}`);
+        brain.setSession(sessionArg).then(
+          (response) => {
+            logger.info(`Session set to: ${response.sessionId}`);
+          },
+          (error) => {
+            logger.error(`Set session error: ${error}`);
+          },
+        );
+      } else {
+        brain.getSession().then(
+          (response) => {
+            logger.info(`Current session: ${response.sessionId ?? 'none'}`);
+          },
+          (error) => {
+            logger.error(`Get session error: ${error}`);
+          },
+        );
+      }
       return;
     }
 
