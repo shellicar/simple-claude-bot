@@ -9,7 +9,7 @@ import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/
 import type { DirectRequest, ParsedReply, ResetRequest, RespondRequest, UnpromptedRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
-import { type AuditEntry, writeAuditEntry } from './auditLog';
+import { writeAuditEntry } from './auditLog';
 import { parseResponse } from './parseResponse';
 import type { SandboxConfig } from './types';
 
@@ -137,8 +137,6 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
   logger.debug(`Query options: ${JSON.stringify(options, undefined, 2)}`);
 
   let result = '';
-  let sessionId: string | undefined;
-  let model: string | undefined;
   try {
     const q = query({ prompt, options });
 
@@ -148,8 +146,6 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
-        sessionId = msg.session_id;
-        model = msg.model;
         onSessionId(msg.session_id);
       }
       if (msg.type === 'tool_use_summary') {
@@ -157,17 +153,7 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
       }
       if (msg.type === 'result') {
         logger.info(`SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`);
-        writeAuditEntry({
-          timestamp: new Date().toISOString(),
-          endpoint,
-          sessionId,
-          costUsd: msg.total_cost_usd,
-          inputTokens: msg.usage.input_tokens,
-          outputTokens: msg.usage.output_tokens,
-          turns: msg.num_turns,
-          durationMs: msg.duration_ms,
-          model: model ?? 'unknown',
-        } satisfies AuditEntry);
+        writeAuditEntry(endpoint, msg);
         if (msg.subtype === 'success') {
           if (isRateLimited(msg)) {
             logger.warn(`Rate limited: ${msg.result}`);
