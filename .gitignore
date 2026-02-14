@@ -7,6 +7,5 @@ node_modules/
 *.tsbuildinfo
 sandbox/
 
-.claude-bot/
-.claude-bot.backup/
+.claude-bot*/
 .turbo/
