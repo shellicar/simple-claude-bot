@@ -4,13 +4,13 @@ import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import { ZodError } from 'zod';
 import { initAuditLog } from '../auditLog';
 import { brainSchema } from '../brainSchema';
 import { directRequestSchema, resetRequestSchema, respondRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
-import { compactSession, directQuery, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted } from '../respondToMessage';
+import { compactSession, directQuery, getSessionId, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted, setSessionId } from '../respondToMessage';
 import type { SandboxConfig } from '../types';
 
 const main = async () => {
@@ -44,6 +44,21 @@ const main = async () => {
 
   app.get('/health', (c) => {
     return c.json({ status: 'ok' } satisfies HealthResponse);
+  });
+
+  app.get('/session', (c) => {
+    const sessionId = getSessionId() ?? null;
+    return c.json({ sessionId } satisfies SessionResponse);
+  });
+
+  app.post('/session', async (c) => {
+    try {
+      const { sessionId } = await c.req.json<{ sessionId: string }>();
+      setSessionId(sessionId);
+      return c.json({ sessionId } satisfies SessionResponse);
+    } catch (error) {
+      return handleError(c, '/session', error, { sessionId: null });
+    }
   });
 
   app.post('/ping', async (c) => {

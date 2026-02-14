@@ -1,5 +1,5 @@
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, SessionResponse, SessionSetRequest, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 
 const TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -32,6 +32,14 @@ export class BrainClient {
 
   public async reset(request: ResetRequest): Promise<ResetResponse> {
     return this.post<ResetRequest, ResetResponse>('/reset', request);
+  }
+
+  public async getSession(): Promise<SessionResponse> {
+    return this.get<SessionResponse>('/session');
+  }
+
+  public async setSession(sessionId: string): Promise<SessionResponse> {
+    return this.post<SessionSetRequest, SessionResponse>('/session', { sessionId });
   }
 
   private async get<T>(path: string): Promise<T> {

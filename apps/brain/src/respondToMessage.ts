@@ -30,16 +30,16 @@ function buildSandboxEnv(): Record<string, string> {
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 let claudeDir: string;
-let DISCORD_SESSION_FILE: string;
+let SESSION_FILE: string;
 let DIRECT_SESSION_FILE: string;
 let COMPACT_FILE: string;
 
 export function initSessionPaths(configDir: string): void {
   claudeDir = configDir;
-  DISCORD_SESSION_FILE = join(claudeDir, '.bot.session');
+  SESSION_FILE = join(claudeDir, '.bot.session');
   DIRECT_SESSION_FILE = join(claudeDir, '.bot.direct-session');
   COMPACT_FILE = join(claudeDir, '.bot.compact');
-  discordSessionId = loadSessionId(DISCORD_SESSION_FILE);
+  sessionId = loadSessionId(SESSION_FILE);
   directSessionId = loadSessionId(DIRECT_SESSION_FILE);
 }
 
@@ -47,7 +47,7 @@ function loadSessionId(file: string): string | undefined {
   return existsSync(file) ? readFileSync(file, 'utf-8').trim() || undefined : undefined;
 }
 
-let discordSessionId: string | undefined;
+let sessionId: string | undefined;
 let directSessionId: string | undefined;
 
 function logHook(input: HookInput): void {
@@ -181,9 +181,9 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
   return result;
 }
 
-function saveDiscordSession(id: string): void {
-  discordSessionId = id;
-  writeFileSync(DISCORD_SESSION_FILE, id);
+function saveSession(id: string): void {
+  sessionId = id;
+  writeFileSync(SESSION_FILE, id);
 }
 
 function saveDirectSession(id: string): void {
@@ -191,23 +191,33 @@ function saveDirectSession(id: string): void {
   writeFileSync(DIRECT_SESSION_FILE, id);
 }
 
+export function getSessionId(): string | undefined {
+  return sessionId;
+}
+
+export function setSessionId(id: string): void {
+  sessionId = id;
+  writeFileSync(SESSION_FILE, id);
+  logger.info(`Session switched to: ${id}`);
+}
+
 export async function compactSession(): Promise<string> {
-  if (!discordSessionId) {
+  if (!sessionId) {
     logger.warn('No session to compact');
     return 'No session to compact';
   }
 
-  logger.info(`Compacting session ${discordSessionId}...`);
+  logger.info(`Compacting session ${sessionId}...`);
 
   const options = {
     pathToClaudeCodeExecutable: claudePath,
     model: 'claude-opus-4-6',
     allowedTools: [] as string[],
     maxTurns: 1,
-    resume: discordSessionId,
+    resume: sessionId,
   } satisfies Options;
 
-  const result = await executeQuery('/compact', '/compact', options, saveDiscordSession);
+  const result = await executeQuery('/compact', '/compact', options, saveSession);
 
   writeFileSync(COMPACT_FILE, result);
   logger.info(`Compact result saved to ${COMPACT_FILE} (${result.length} chars)`);
@@ -215,13 +225,13 @@ export async function compactSession(): Promise<string> {
 }
 
 export async function resetSession(body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
-  logger.info('Resetting Discord session...');
+  logger.info('Resetting session...');
 
   // Delete old session
-  if (existsSync(DISCORD_SESSION_FILE)) {
-    unlinkSync(DISCORD_SESSION_FILE);
+  if (existsSync(SESSION_FILE)) {
+    unlinkSync(SESSION_FILE);
   }
-  discordSessionId = undefined;
+  sessionId = undefined;
 
   logger.info(`Received ${body.messages.length} messages for session seeding`);
 
@@ -249,8 +259,8 @@ export async function resetSession(body: ResetRequest, sandboxConfig: SandboxCon
     sessionId: undefined,
   });
 
-  const result = await executeQuery('/reset', seedPrompt, options, saveDiscordSession);
-  logger.info(`Session reset complete. New session: ${discordSessionId}. Response: ${result}`);
+  const result = await executeQuery('/reset', seedPrompt, options, saveSession);
+  logger.info(`Session reset complete. New session: ${sessionId}. Response: ${result}`);
   return result;
 }
 
@@ -317,10 +327,10 @@ export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: San
       allowedTools: body.allowedTools ?? [],
       maxTurns: body.maxTurns ?? 1,
       sandboxConfig,
-      sessionId: discordSessionId,
+      sessionId: sessionId,
     });
 
-    const result = await executeQuery('/unprompted', body.prompt, sdkOptions, saveDiscordSession);
+    const result = await executeQuery('/unprompted', body.prompt, sdkOptions, saveSession);
 
     if (!result) {
       logger.warn('Empty unprompted response');
@@ -331,7 +341,7 @@ export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: San
     return { replies, spoke: replies.length > 0 };
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
-    discordSessionId = undefined;
+    sessionId = undefined;
     return { replies: [], spoke: false };
   }
 }
@@ -355,7 +365,7 @@ export async function respondToMessages(body: RespondRequest, sandboxConfig: San
             content: contentBlocks,
           },
           parent_tool_use_id: null,
-          session_id: discordSessionId ?? '',
+          session_id: sessionId ?? '',
         } satisfies SDKUserMessage;
       })()
     : promptText;
@@ -365,10 +375,10 @@ export async function respondToMessages(body: RespondRequest, sandboxConfig: San
     allowedTools: body.allowedTools,
     maxTurns: 25,
     sandboxConfig,
-    sessionId: discordSessionId,
+    sessionId: sessionId,
   });
 
-  const result = await executeQuery('/respond', prompt, options, saveDiscordSession);
+  const result = await executeQuery('/respond', prompt, options, saveSession);
 
   if (!result) {
     logger.warn('Empty response from Claude');

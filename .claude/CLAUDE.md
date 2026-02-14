@@ -60,7 +60,8 @@ pnpm build:ears     # Build ears only
 - `/prompt` — Send an unprompted message
 - `/workplay` — Manually trigger a work/play idle prompt
 - `/compact` — Compact the current session
-- `/reset` — Reset session with channel history
+- `/reset [count]` — Reset session with channel history (default: 500 messages)
+- `/session [id]` — Show current session ID, or switch to a different session
 - `/direct <prompt>` — Direct query (separate session)
 - `/ping` — Ping the brain SDK
 - `/health` — Check brain health endpoint

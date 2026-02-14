@@ -67,3 +67,11 @@ export interface PingResponse {
   readonly result: string;
   readonly error?: string;
 }
+
+export interface SessionResponse {
+  readonly sessionId: string | null;
+}
+
+export interface SessionSetRequest {
+  readonly sessionId: string;
+}
