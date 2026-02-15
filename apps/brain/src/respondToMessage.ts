@@ -142,7 +142,7 @@ function isRateLimited(msg: SDKResultSuccess): boolean {
   return noTokens && msg.result.includes('429') && msg.result.includes('rate_limit_error');
 }
 
-async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
+async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
   const startTime = Date.now();
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -162,7 +162,7 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
-        onSessionId(msg.session_id);
+        onSessionId(uuidSchema.parse(msg.session_id));
       }
       if (msg.type === 'tool_use_summary') {
         logger.info(`SDK tool use: ${msg.summary}`);
@@ -197,16 +197,14 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
   return result;
 }
 
-function saveSession(id: string): void {
-  const uuid = uuidSchema.parse(id);
-  sessionId = uuid;
-  writeFileSync(SESSION_FILE, uuid);
+function saveSession(id: UUID): void {
+  sessionId = id;
+  writeFileSync(SESSION_FILE, id);
 }
 
-function saveDirectSession(id: string): void {
-  const uuid = uuidSchema.parse(id);
-  directSessionId = uuid;
-  writeFileSync(DIRECT_SESSION_FILE, uuid);
+function saveDirectSession(id: UUID): void {
+  directSessionId = id;
+  writeFileSync(DIRECT_SESSION_FILE, id);
 }
 
 export function getSessionId(): UUID | undefined {

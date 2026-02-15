@@ -78,9 +78,13 @@ pnpm knip           # Detect unused exports/dependencies
 - Use `satisfies` for type safety where appropriate
 - esbuild bundles everything — ears needs no runtime `node_modules`; brain needs `node_modules` only for `@anthropic-ai/claude-code`
 
+## SDK Notes
+
+- **`allowedTools`** controls which tools are **auto-approved** (no permission prompt), NOT which tools are available. To restrict available tools, use the `tools` option instead.
+
 ## Known Quirks
 
-- `/compact` can fail with "No conversation found with session ID" — likely because the compact options don't include the sandbox/cwd configuration used when the session was created, but not yet investigated.
+- `/compact` can fail with "No conversation found with session ID" — `cwd` is now passed but compact still doesn't use `buildQueryOptions` (no hooks, no settingSources). May need further investigation.
 
 ## Future Ideas
 
