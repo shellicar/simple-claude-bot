@@ -15,10 +15,6 @@ export function writeAuditEvent(endpoint: string, msg: SDKMessage): void {
   if (!auditFilePath) {
     throw new Error('Audit log not initialised');
   }
-  try {
-    const entry = { timestamp: new Date().toISOString(), endpoint, ...msg };
-    appendFileSync(auditFilePath, `${JSON.stringify(entry)}\n`);
-  } catch (error) {
-    logger.error(`Failed to write audit event: ${error}`);
-  }
+  const entry = { timestamp: new Date().toISOString(), endpoint, ...msg };
+  appendFileSync(auditFilePath, `${JSON.stringify(entry)}\n`);
 }

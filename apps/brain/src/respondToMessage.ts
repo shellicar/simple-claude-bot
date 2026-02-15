@@ -1,3 +1,4 @@
+import type { UUID } from 'node:crypto';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKResultSuccess, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
@@ -11,6 +12,7 @@ import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter
 import { zone } from '@simple-claude-bot/shared/zone';
 import { writeAuditEvent } from './auditLog';
 import { parseResponse } from './parseResponse';
+import { uuidSchema } from './requestSchemas';
 import type { SandboxConfig } from './types';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
@@ -43,13 +45,7 @@ export function initSessionPaths(configDir: string): void {
   directSessionId = loadSessionId(DIRECT_SESSION_FILE);
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function isValidUUID(value: string): boolean {
-  return UUID_RE.test(value);
-}
-
-function loadSessionId(file: string): string | undefined {
+function loadSessionId(file: string): UUID | undefined {
   if (!existsSync(file)) {
     return undefined;
   }
@@ -57,15 +53,16 @@ function loadSessionId(file: string): string | undefined {
   if (!value) {
     return undefined;
   }
-  if (!isValidUUID(value)) {
+  const result = uuidSchema.safeParse(value);
+  if (!result.success) {
     logger.warn(`Ignoring invalid session ID from ${file}: ${value}`);
     return undefined;
   }
-  return value;
+  return result.data;
 }
 
-let sessionId: string | undefined;
-let directSessionId: string | undefined;
+let sessionId: UUID | undefined;
+let directSessionId: UUID | undefined;
 
 function logHook(input: HookInput): void {
   switch (input.hook_event_name) {
@@ -141,7 +138,8 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
 };
 
 function isRateLimited(msg: SDKResultSuccess): boolean {
-  return msg.result.includes('429') || msg.result.includes('rate_limit_error');
+  const noTokens = msg.total_cost_usd === 0 && msg.usage.input_tokens === 0 && msg.usage.output_tokens === 0;
+  return noTokens && msg.result.includes('429') && msg.result.includes('rate_limit_error');
 }
 
 async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
@@ -200,26 +198,28 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
 }
 
 function saveSession(id: string): void {
-  sessionId = id;
-  writeFileSync(SESSION_FILE, id);
+  const uuid = uuidSchema.parse(id);
+  sessionId = uuid;
+  writeFileSync(SESSION_FILE, uuid);
 }
 
 function saveDirectSession(id: string): void {
-  directSessionId = id;
-  writeFileSync(DIRECT_SESSION_FILE, id);
+  const uuid = uuidSchema.parse(id);
+  directSessionId = uuid;
+  writeFileSync(DIRECT_SESSION_FILE, uuid);
 }
 
-export function getSessionId(): string | undefined {
+export function getSessionId(): UUID | undefined {
   return sessionId;
 }
 
-export function setSessionId(id: string): void {
+export function setSessionId(id: UUID): void {
   sessionId = id;
   writeFileSync(SESSION_FILE, id);
   logger.info(`Session switched to: ${id}`);
 }
 
-export async function compactSession(): Promise<string> {
+export async function compactSession(sandboxConfig: SandboxConfig): Promise<string> {
   if (!sessionId) {
     logger.warn('No session to compact');
     return 'No session to compact';
@@ -230,6 +230,7 @@ export async function compactSession(): Promise<string> {
   const options = {
     pathToClaudeCodeExecutable: claudePath,
     model: 'claude-opus-4-6',
+    cwd: sandboxConfig.directory,
     allowedTools: [] as string[],
     maxTurns: 1,
     resume: sessionId,
@@ -370,7 +371,6 @@ export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: San
     return { replies, spoke: replies.length > 0 };
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
-    sessionId = undefined;
     return { replies: [], spoke: false };
   }
 }

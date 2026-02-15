@@ -103,7 +103,7 @@ const main = async () => {
 
   app.post('/compact', async (c) => {
     try {
-      const result = await compactSession();
+      const result = await compactSession(sandboxConfig);
       return c.json({ result } satisfies CompactResponse);
     } catch (error) {
       return handleError(c, '/compact', error, { result: '' });
