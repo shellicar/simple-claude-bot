@@ -42,28 +42,45 @@ export class BrainClient {
     return this.post<SessionSetRequest, SessionResponse>('/session', { sessionId });
   }
 
+  private async withWaitingLog<T>(path: string, fn: () => Promise<T>): Promise<T> {
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      logger.debug(`Brain ${path}: still waiting after ${elapsed}s...`);
+    }, 5000);
+    try {
+      return await fn();
+    } finally {
+      clearInterval(timer);
+    }
+  }
+
   private async get<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     logger.debug(`Brain GET ${url}`);
-    const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
-    if (!response.ok) {
-      throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
-    }
-    return response.json() as Promise<T>;
+    return this.withWaitingLog(path, async () => {
+      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      if (!response.ok) {
+        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json() as Promise<T>;
+    });
   }
 
   private async post<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
     const url = `${this.baseUrl}${path}`;
     logger.debug(`Brain POST ${url}`);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    return this.withWaitingLog(path, async () => {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!response.ok) {
+        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
+      }
+      return response.json() as Promise<TRes>;
     });
-    if (!response.ok) {
-      throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
-    }
-    return response.json() as Promise<TRes>;
   }
 }

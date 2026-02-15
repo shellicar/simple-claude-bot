@@ -1,4 +1,7 @@
+import type { UUID } from 'node:crypto';
 import { z } from 'zod';
+
+export const uuidSchema = z.uuid('Must be a valid UUID').transform((x) => x as UUID);
 
 const platformAttachmentSchema = z.object({
   url: z.string(),
@@ -36,4 +39,8 @@ export const directRequestSchema = z.object({
 export const resetRequestSchema = z.object({
   messages: z.array(platformMessageSchema),
   systemPrompt: z.string(),
+});
+
+export const sessionSetRequestSchema = z.object({
+  sessionId: uuidSchema,
 });

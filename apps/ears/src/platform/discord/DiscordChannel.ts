@@ -65,6 +65,6 @@ export class DiscordChannel implements PlatformChannel {
     }
 
     messages.reverse();
-    return messages.map((m) => new DiscordMessage(m));
+    return Promise.all(messages.map((m) => DiscordMessage.from(m)));
   }
 }

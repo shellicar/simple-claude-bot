@@ -52,8 +52,11 @@ Deployment: `banananetv1/compose.yaml` runs brain and ears as separate container
 
 ```bash
 pnpm build          # Build all apps via turbo
-pnpm build:brain    # Build brain only
-pnpm build:ears     # Build ears only
+pnpm type-check     # Type-check all apps via turbo
+pnpm ci:fix         # Auto-fix lint issues (biome)
+pnpm knip           # Detect unused exports/dependencies
+./banananetv1/deploy.sh           # Build and deploy containers
+./banananetv1/deploy.sh --build-only  # Build images only
 ```
 
 ## Stdin Commands (Ears)

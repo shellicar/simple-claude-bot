@@ -1,6 +1,7 @@
 export interface PlatformAttachment {
   readonly url: string;
   readonly contentType: string | null;
+  readonly data?: string;
 }
 
 export interface PlatformMessage {
