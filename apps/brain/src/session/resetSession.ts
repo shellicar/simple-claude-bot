@@ -1,0 +1,54 @@
+import { existsSync, unlinkSync } from 'node:fs';
+import { Instant } from '@js-joda/core';
+import { logger } from '@simple-claude-bot/shared/logger';
+import type { ResetRequest } from '@simple-claude-bot/shared/shared/types';
+import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
+import { zone } from '@simple-claude-bot/shared/zone';
+import { buildQueryOptions } from '../buildQueryOptions';
+import { executeQuery } from '../executeQuery';
+import { claudeGlobals } from '../globals';
+import type { SandboxConfig } from '../types';
+import { saveSession } from './saveSession';
+
+export async function resetSession(body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
+  logger.info('Resetting session...');
+
+  // Delete old session
+  if (claudeGlobals.SESSION_FILE == null) {
+    throw new Error('No session file');
+  }
+  if (existsSync(claudeGlobals.SESSION_FILE)) {
+    unlinkSync(claudeGlobals.SESSION_FILE);
+  }
+  claudeGlobals.sessionId = undefined;
+
+  logger.info(`Received ${body.messages.length} messages for session seeding`);
+
+  if (body.messages.length === 0) {
+    logger.warn('No messages found to seed session');
+    return 'No messages found to seed session';
+  }
+
+  // Format messages as text with original display names
+  const history = body.messages
+    .map((m) => {
+      const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
+      const prefix = m.authorIsBot ? '[BOT] ' : '';
+      return `${prefix}[${zdt.format(timestampFormatter)}] ${m.authorDisplayName} (${m.authorId}): ${m.content}`;
+    })
+    .join('\n');
+
+  const seedPrompt = `The following is recent message history from the Discord channel. Your response will NOT be sent to Discord. Internalise this context and summarise what you understand — who the users are, what they've been talking about, and any ongoing topics. Do NOT reply to or continue any of the conversations.\n\n${history}`;
+
+  const options = buildQueryOptions({
+    systemPrompt: body.systemPrompt,
+    allowedTools: [],
+    maxTurns: 10,
+    sandboxConfig: { enabled: false, directory: sandboxConfig.directory },
+    sessionId: undefined,
+  });
+
+  const result = await executeQuery('/reset', seedPrompt, options, saveSession);
+  logger.info(`Session reset complete. New session: ${claudeGlobals.sessionId}. Response: ${result}`);
+  return result;
+}

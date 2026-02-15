@@ -7,12 +7,22 @@ import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ZodError } from 'zod';
-import { initAuditLog } from '../auditLog';
+import { initAuditLog } from '../audit/auditLog';
 import { brainSchema } from '../brainSchema';
+import { compactSession } from '../compactSession';
+import { directQuery } from '../directQuery';
+import { SdkError } from '../errors/SdkError';
+import { getSessionId } from '../getSessionId';
+import { initSessionPaths } from '../initSessionPaths';
+import { pingSDK } from '../ping/pingSDK';
 import { directRequestSchema, resetRequestSchema, respondRequestSchema, sessionSetRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
-import { compactSession, directQuery, getSessionId, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted, setSessionId } from '../respondToMessage';
+import { respondToMessages } from '../respondToMessages';
+import { resetSession } from '../session/resetSession';
+import { setSessionId } from '../session/setSessionId';
 import type { SandboxConfig } from '../types';
+import { sendUnprompted } from '../unsolicited/sendUnprompted';
 
 const main = async () => {
   const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
@@ -33,12 +43,21 @@ const main = async () => {
   logger.info(`Sandbox ${sandboxConfig.enabled ? 'enabled' : 'disabled'} (cwd: ${sandboxConfig.directory})`);
 
   function handleError(c: Context, route: string, error: unknown, errorBody: Record<string, unknown>) {
+    logger.error(`${route} error`);
+    logger.error(error);
+
+    let statusCode: ContentfulStatusCode = 500;
     if (error instanceof ZodError) {
-      logger.error(`${route} validation error: ${error.message}`);
-      return c.json({ ...errorBody, error: error.message }, 400);
+      statusCode = 400;
+    } else if (error instanceof SdkError) {
+      statusCode = error.httpCode;
     }
-    logger.error(`${route} error: ${error}`);
-    return c.json({ ...errorBody, error: String(error) }, 500);
+
+    logger.info('Http Response', {
+      status: statusCode,
+      body: { ...errorBody, error },
+    });
+    return c.json({ ...errorBody, error }, statusCode);
   }
 
   const app = new Hono();

@@ -7,8 +7,6 @@ export interface ParsedReply {
   message: string;
 }
 
-// --- Brain HTTP contract ---
-
 export interface RespondRequest {
   readonly messages: PlatformMessage[];
   readonly systemPrompt: string;
