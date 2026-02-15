@@ -37,3 +37,7 @@ export const resetRequestSchema = z.object({
   messages: z.array(platformMessageSchema),
   systemPrompt: z.string(),
 });
+
+export const sessionSetRequestSchema = z.object({
+  sessionId: z.uuid('Session ID must be a valid UUID'),
+});

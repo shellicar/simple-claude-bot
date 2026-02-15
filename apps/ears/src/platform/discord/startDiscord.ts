@@ -61,7 +61,7 @@ export function startDiscord(
     callbacks.onReady({ channel, botUserId, botUsername, lastMessageTimestamp });
   });
 
-  client.on('messageCreate', (message: Message) => {
+  client.on('messageCreate', async (message: Message) => {
     if (message.author.id === client.user?.id) {
       logger.debug(`Filtered own message: author=${message.author.displayName} (${message.author.id})`);
       return;
@@ -73,7 +73,7 @@ export function startDiscord(
     }
 
     logger.info(`${message.author.displayName}: ${message.content}`);
-    callbacks.onMessage(new DiscordMessage(message));
+    callbacks.onMessage(await DiscordMessage.from(message));
   });
 
   client.login(token);
