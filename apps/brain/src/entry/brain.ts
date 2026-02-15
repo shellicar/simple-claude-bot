@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import type { Server } from 'node:http';
 import { resolve } from 'node:path';
 import { env } from 'node:process';
 import { serve } from '@hono/node-server';
@@ -9,7 +10,7 @@ import { type Context, Hono } from 'hono';
 import { ZodError } from 'zod';
 import { initAuditLog } from '../auditLog';
 import { brainSchema } from '../brainSchema';
-import { directRequestSchema, resetRequestSchema, respondRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
+import { directRequestSchema, resetRequestSchema, respondRequestSchema, sessionSetRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
 import { compactSession, directQuery, getSessionId, initSessionPaths, pingSDK, resetSession, respondToMessages, sendUnprompted, setSessionId } from '../respondToMessage';
 import type { SandboxConfig } from '../types';
 
@@ -53,7 +54,7 @@ const main = async () => {
 
   app.post('/session', async (c) => {
     try {
-      const { sessionId } = await c.req.json<{ sessionId: string }>();
+      const { sessionId } = sessionSetRequestSchema.parse(await c.req.json());
       setSessionId(sessionId);
       return c.json({ sessionId } satisfies SessionResponse);
     } catch (error) {
@@ -102,7 +103,7 @@ const main = async () => {
 
   app.post('/compact', async (c) => {
     try {
-      const result = await compactSession();
+      const result = await compactSession(sandboxConfig);
       return c.json({ result } satisfies CompactResponse);
     } catch (error) {
       return handleError(c, '/compact', error, { result: '' });
@@ -120,9 +121,11 @@ const main = async () => {
   });
 
   const port = 3000;
-  serve({ fetch: app.fetch, port }, () => {
+  const server = serve({ fetch: app.fetch, port }, () => {
     logger.info(`Brain listening on port ${port}`);
-  });
+  }) as Server;
+  server.requestTimeout = 10 * 60 * 1000;
+  server.headersTimeout = 10 * 60 * 1000 + 1000;
 };
 
 await main();

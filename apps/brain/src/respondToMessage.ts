@@ -1,3 +1,4 @@
+import type { UUID } from 'node:crypto';
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type HookCallbackMatcher, type HookEvent, type HookInput, type Options, query, type SDKMessage, type SDKResultSuccess, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
@@ -9,8 +10,9 @@ import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/
 import type { DirectRequest, ParsedReply, ResetRequest, RespondRequest, UnpromptedRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
-import { writeAuditEntry } from './auditLog';
+import { writeAuditEvent } from './auditLog';
 import { parseResponse } from './parseResponse';
+import { uuidSchema } from './requestSchemas';
 import type { SandboxConfig } from './types';
 
 const claudePath = process.env.CLAUDE_PATH ?? 'claude';
@@ -27,7 +29,9 @@ function buildSandboxEnv(): Record<string, string> {
   return env;
 }
 
-const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+type ImageContentType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+const IMAGE_CONTENT_TYPES = new Set<ImageContentType>(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 let claudeDir: string;
 let SESSION_FILE: string;
@@ -43,12 +47,24 @@ export function initSessionPaths(configDir: string): void {
   directSessionId = loadSessionId(DIRECT_SESSION_FILE);
 }
 
-function loadSessionId(file: string): string | undefined {
-  return existsSync(file) ? readFileSync(file, 'utf-8').trim() || undefined : undefined;
+function loadSessionId(file: string): UUID | undefined {
+  if (!existsSync(file)) {
+    return undefined;
+  }
+  const value = readFileSync(file, 'utf-8').trim();
+  if (!value) {
+    return undefined;
+  }
+  const result = uuidSchema.safeParse(value);
+  if (!result.success) {
+    logger.warn(`Ignoring invalid session ID from ${file}: ${value}`);
+    return undefined;
+  }
+  return result.data;
 }
 
-let sessionId: string | undefined;
-let directSessionId: string | undefined;
+let sessionId: UUID | undefined;
+let directSessionId: UUID | undefined;
 
 function logHook(input: HookInput): void {
   switch (input.hook_event_name) {
@@ -124,10 +140,11 @@ const hasSubType = (m: SDKMessage): m is SDKMessageWithSubtype => {
 };
 
 function isRateLimited(msg: SDKResultSuccess): boolean {
-  return msg.total_cost_usd === 0 && msg.usage.input_tokens === 0 && msg.usage.output_tokens === 0;
+  const noTokens = msg.total_cost_usd === 0 && msg.usage.input_tokens === 0 && msg.usage.output_tokens === 0;
+  return noTokens && msg.result.includes('429') && msg.result.includes('rate_limit_error');
 }
 
-async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: string) => void): Promise<string> {
+async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
   const startTime = Date.now();
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -141,19 +158,19 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
     const q = query({ prompt, options });
 
     for await (const msg of q) {
+      writeAuditEvent(endpoint, msg);
       if (hasSubType(msg)) {
         logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
-        onSessionId(msg.session_id);
+        onSessionId(uuidSchema.parse(msg.session_id));
       }
       if (msg.type === 'tool_use_summary') {
         logger.info(`SDK tool use: ${msg.summary}`);
       }
       if (msg.type === 'result') {
         logger.info(`SDK result: cost=$${msg.total_cost_usd.toFixed(4)} tokens=${msg.usage.input_tokens}in/${msg.usage.output_tokens}out turns=${msg.num_turns} duration=${msg.duration_ms}ms`);
-        writeAuditEntry(endpoint, msg);
         if (msg.subtype === 'success') {
           if (isRateLimited(msg)) {
             logger.warn(`Rate limited: ${msg.result}`);
@@ -162,6 +179,7 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
           result = msg.result;
         } else {
           logger.error(`SDK result failure: ${JSON.stringify(msg)}`);
+          throw new Error(`SDK result failure: ${msg.subtype}`);
         }
       }
     }
@@ -181,27 +199,27 @@ async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDK
   return result;
 }
 
-function saveSession(id: string): void {
+function saveSession(id: UUID): void {
   sessionId = id;
   writeFileSync(SESSION_FILE, id);
 }
 
-function saveDirectSession(id: string): void {
+function saveDirectSession(id: UUID): void {
   directSessionId = id;
   writeFileSync(DIRECT_SESSION_FILE, id);
 }
 
-export function getSessionId(): string | undefined {
+export function getSessionId(): UUID | undefined {
   return sessionId;
 }
 
-export function setSessionId(id: string): void {
+export function setSessionId(id: UUID): void {
   sessionId = id;
   writeFileSync(SESSION_FILE, id);
   logger.info(`Session switched to: ${id}`);
 }
 
-export async function compactSession(): Promise<string> {
+export async function compactSession(sandboxConfig: SandboxConfig): Promise<string> {
   if (!sessionId) {
     logger.warn('No session to compact');
     return 'No session to compact';
@@ -212,6 +230,7 @@ export async function compactSession(): Promise<string> {
   const options = {
     pathToClaudeCodeExecutable: claudePath,
     model: 'claude-opus-4-6',
+    cwd: sandboxConfig.directory,
     allowedTools: [] as string[],
     maxTurns: 1,
     resume: sessionId,
@@ -249,13 +268,13 @@ export async function resetSession(body: ResetRequest, sandboxConfig: SandboxCon
     })
     .join('\n');
 
-  const seedPrompt = `system: The following is the recent message history from the Discord channel. Internalize this context — these are the users you've been chatting with and the conversations you've had. Do not respond to these messages, just acknowledge that you have received the context.\n\n${history}`;
+  const seedPrompt = `The following is recent message history from the Discord channel. Your response will NOT be sent to Discord. Internalise this context and summarise what you understand — who the users are, what they've been talking about, and any ongoing topics. Do NOT reply to or continue any of the conversations.\n\n${history}`;
 
   const options = buildQueryOptions({
     systemPrompt: body.systemPrompt,
     allowedTools: [],
-    maxTurns: 1,
-    sandboxConfig,
+    maxTurns: 10,
+    sandboxConfig: { enabled: false, directory: sandboxConfig.directory },
     sessionId: undefined,
   });
 
@@ -275,19 +294,22 @@ function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
     });
 
     for (const attachment of m.attachments) {
-      if (attachment.contentType && IMAGE_CONTENT_TYPES.has(attachment.contentType)) {
-        blocks.push({
-          type: 'image',
-          source: {
-            type: 'url',
-            url: attachment.url,
-          },
-        });
+      const imageContentType = attachment.contentType as ImageContentType;
+      if (imageContentType && IMAGE_CONTENT_TYPES.has(imageContentType)) {
+        if (attachment.data) {
+          blocks.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: imageContentType,
+              data: attachment.data,
+            },
+          });
+        } else {
+          logger.warn('Skipping image attachment without base64 data', { contentType: attachment.contentType, url: attachment.url });
+        }
       } else {
-        blocks.push({
-          type: 'text',
-          text: `[attachment: ${attachment.url}]`,
-        });
+        logger.warn('Skipping unsupported attachment type', { contentType: attachment.contentType, url: attachment.url });
       }
     }
   }
@@ -341,7 +363,6 @@ export async function sendUnprompted(body: UnpromptedRequest, sandboxConfig: San
     return { replies, spoke: replies.length > 0 };
   } catch (error) {
     logger.error(`Error in unprompted message: ${error}`);
-    sessionId = undefined;
     return { replies: [], spoke: false };
   }
 }
