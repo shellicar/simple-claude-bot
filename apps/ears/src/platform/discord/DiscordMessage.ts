@@ -4,7 +4,7 @@ import type { Message } from 'discord.js';
 
 const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
-async function downloadAttachment(url: string, contentType: string): Promise<string | undefined> {
+async function downloadAttachment(url: string): Promise<string | undefined> {
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -43,7 +43,7 @@ export class DiscordMessage implements PlatformMessage {
     const attachments: PlatformAttachment[] = await Promise.all(
       [...message.attachments.values()].map(async (a) => {
         const isImage = a.contentType != null && IMAGE_CONTENT_TYPES.has(a.contentType);
-        const data = isImage && a.contentType != null ? await downloadAttachment(a.url, a.contentType) : undefined;
+        const data = isImage && a.contentType != null ? await downloadAttachment(a.url) : undefined;
         return {
           url: a.url,
           contentType: a.contentType,
