@@ -85,6 +85,7 @@ pnpm knip           # Detect unused exports/dependencies
 ## Known Quirks
 
 - `/compact` can fail with "No conversation found with session ID" — `cwd` is now passed but compact still doesn't use `buildQueryOptions` (no hooks, no settingSources). May need further investigation.
+- **Discord attachment handling** — Images are downloaded to base64 for session stability. Non-image attachments (e.g. text files) are currently skipped with a warning to avoid session corruption (expired CDN URLs on resume). These should be downloaded and inlined as text content.
 
 ## Future Ideas
 

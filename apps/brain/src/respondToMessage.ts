@@ -29,7 +29,9 @@ function buildSandboxEnv(): Record<string, string> {
   return env;
 }
 
-const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+type ImageContentType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+const IMAGE_CONTENT_TYPES = new Set<ImageContentType>(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 
 let claudeDir: string;
 let SESSION_FILE: string;
@@ -292,30 +294,22 @@ function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
     });
 
     for (const attachment of m.attachments) {
-      if (attachment.contentType && IMAGE_CONTENT_TYPES.has(attachment.contentType)) {
+      const imageContentType = attachment.contentType as ImageContentType;
+      if (imageContentType && IMAGE_CONTENT_TYPES.has(imageContentType)) {
         if (attachment.data) {
           blocks.push({
             type: 'image',
             source: {
               type: 'base64',
-              media_type: attachment.contentType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+              media_type: imageContentType,
               data: attachment.data,
             },
           });
         } else {
-          blocks.push({
-            type: 'image',
-            source: {
-              type: 'url',
-              url: attachment.url,
-            },
-          });
+          logger.warn('Skipping image attachment without base64 data', { contentType: attachment.contentType, url: attachment.url });
         }
       } else {
-        blocks.push({
-          type: 'text',
-          text: `[attachment: ${attachment.url}]`,
-        });
+        logger.warn('Skipping unsupported attachment type', { contentType: attachment.contentType, url: attachment.url });
       }
     }
   }
