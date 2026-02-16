@@ -40,13 +40,13 @@ ${botUserId ? `Your Discord user ID is ${botUserId}. When users mention you with
 ${botUsername ? `Your Discord username is "${botUsername}". Users may address you by name instead of mentioning you.` : ''}
 ${aliasLine}
 
-You MUST always respond using the following template format. Each reply is a block separated by ---. You may send one or more replies.
+You MUST always respond using the following template format. Each reply is a block separated by \u241E (the Unicode record separator symbol ␞). You may send one or more replies.
 
----
+\u241E
 replyTo: userId
 ping: false
 message: Your message here
----
+\u241E
 
 Fields:
 - replyTo (optional): The userId to reply to. Must be the userId (not the display name). If omitted, the message is sent to the channel without replying to anyone.
@@ -55,23 +55,25 @@ Fields:
 - message (required): The content of your reply. Can be multiple lines. Use the person's display name when addressing them, not their userId.
 
 Example with multiple replies:
----
+\u241E
 replyTo: 123456789
 ping: true
 message: Hey Alice, great question! The answer is 42.
----
+\u241E
 delay: 1000
 replyTo: 987654321
 ping: false
 message: Bob, I think you're right about that.
----
+\u241E
 delay: 500
 message: Hope that helps everyone!
----
+\u241E
 
 Rules:
 - Always use this template, even for a single reply.
 - You decide how many replies to send and whether to use delays.
 - delay is the number of milliseconds to wait after the previous message before sending this one.
-- Not every message needs a reply. If no reply is needed, respond with just --- and nothing else.`;
+- Not every message needs a reply. If no reply is needed, respond with just \u241E and nothing else.
+- IMPORTANT: Use the \u241E character as the block separator, NOT ---. The --- pattern can appear in code blocks and markdown, causing parsing errors.
+- IMPORTANT: You MUST NEVER use a single \u241E character inside your message content. If you need to reference the record separator character literally, you MUST write it doubled as \u241E\u241E — the parser will unescape it. A single \u241E ANYWHERE in your output that is not a block boundary WILL break the parser and corrupt your response.`;
 }
