@@ -1,21 +1,40 @@
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { Message } from 'discord.js';
+import { fileTypeFromBuffer } from 'file-type';
 import type { PlatformAttachmentInput, PlatformMessageInput } from '../../types';
 
-const IMAGE_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-
-async function downloadAttachment(url: string): Promise<string | undefined> {
+async function downloadAttachment(url: string, contentType: string | null): Promise<PlatformAttachmentInput> {
   try {
     const response = await fetch(url);
     if (!response.ok) {
       logger.warn(`Failed to download attachment: ${response.status} ${response.statusText}`);
-      return undefined;
+      return {
+        url,
+        contentType,
+      };
     }
     const buffer = await response.arrayBuffer();
-    return Buffer.from(buffer).toString('base64');
+    const type = await fileTypeFromBuffer(buffer);
+    const mimeType = type?.mime ?? contentType;
+    const base64 = Buffer.from(buffer).toString('base64');
+    const attachment = {
+      url,
+      contentType: mimeType,
+      data: base64,
+    } satisfies PlatformAttachmentInput;
+    logger.info('Creating attachment', {
+      url: attachment.url,
+      contentType: attachment.contentType,
+      dataLength: attachment.data.length,
+    });
+
+    return attachment;
   } catch (error) {
     logger.warn(`Failed to download attachment ${url}: ${error}`);
-    return undefined;
+    return {
+      url,
+      contentType,
+    };
   }
 }
 
@@ -42,13 +61,7 @@ export class DiscordMessage implements PlatformMessageInput {
   public static async from(message: Message): Promise<DiscordMessage> {
     const attachments: PlatformAttachmentInput[] = await Promise.all(
       [...message.attachments.values()].map(async (a) => {
-        const isImage = a.contentType != null && IMAGE_CONTENT_TYPES.has(a.contentType);
-        const data = isImage && a.contentType != null ? await downloadAttachment(a.url) : undefined;
-        return {
-          url: a.url,
-          contentType: a.contentType,
-          data,
-        } satisfies PlatformAttachmentInput;
+        return await downloadAttachment(a.url, a.contentType);
       }),
     );
     return new DiscordMessage(message, attachments);

@@ -20,6 +20,7 @@
     "@js-joda/core": "^5.7.0",
     "@simple-claude-bot/shared": "workspace:^",
     "discord.js": "^14.25.1",
+    "file-type": "^21.3.0",
     "zod": "^4.3.6"
   }
 }
