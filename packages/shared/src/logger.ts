@@ -10,5 +10,5 @@ export const logger = createLogger({
       return `${timestamp} ${level}: ${message}${metaStr}`;
     }),
   ),
-  transports: [new transports.Console()],
+  transports: [new transports.Console({ stderrLevels: ['error'] })],
 });
