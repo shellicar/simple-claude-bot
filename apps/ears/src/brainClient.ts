@@ -1,5 +1,6 @@
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { CompactResponse, DirectRequest, DirectResponse, HealthResponse, PingResponse, ResetRequest, ResetResponse, RespondRequest, RespondResponse, SessionResponse, SessionSetRequest, UnpromptedRequest, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { DirectRequestInput, ResetRequestInput, RespondRequestInput, SessionSetRequestInput, UnpromptedRequestInput } from './types';
 
 const TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -14,24 +15,24 @@ export class BrainClient {
     return this.post<Record<string, never>, PingResponse>('/ping', {});
   }
 
-  public async respond(request: RespondRequest): Promise<RespondResponse> {
-    return this.post<RespondRequest, RespondResponse>('/respond', request);
+  public async respond(request: RespondRequestInput): Promise<RespondResponse> {
+    return this.post<RespondRequestInput, RespondResponse>('/respond', request);
   }
 
-  public async unprompted(request: UnpromptedRequest): Promise<UnpromptedResponse> {
-    return this.post<UnpromptedRequest, UnpromptedResponse>('/unprompted', request);
+  public async unprompted(request: UnpromptedRequestInput): Promise<UnpromptedResponse> {
+    return this.post<UnpromptedRequestInput, UnpromptedResponse>('/unprompted', request);
   }
 
-  public async direct(request: DirectRequest): Promise<DirectResponse> {
-    return this.post<DirectRequest, DirectResponse>('/direct', request);
+  public async direct(request: DirectRequestInput): Promise<DirectResponse> {
+    return this.post<DirectRequestInput, DirectResponse>('/direct', request);
   }
 
   public async compact(): Promise<CompactResponse> {
     return this.post<Record<string, never>, CompactResponse>('/compact', {});
   }
 
-  public async reset(request: ResetRequest): Promise<ResetResponse> {
-    return this.post<ResetRequest, ResetResponse>('/reset', request);
+  public async reset(request: ResetRequestInput): Promise<ResetResponse> {
+    return this.post<ResetRequestInput, ResetResponse>('/reset', request);
   }
 
   public async getSession(): Promise<SessionResponse> {
@@ -39,7 +40,7 @@ export class BrainClient {
   }
 
   public async setSession(sessionId: string): Promise<SessionResponse> {
-    return this.post<SessionSetRequest, SessionResponse>('/session', { sessionId });
+    return this.post<SessionSetRequestInput, SessionResponse>('/session', { sessionId });
   }
 
   private async withWaitingLog<T>(path: string, fn: () => Promise<T>): Promise<T> {

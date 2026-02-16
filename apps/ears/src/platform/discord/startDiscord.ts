@@ -1,7 +1,7 @@
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { type Message, type PresenceStatus, type PresenceStatusData, TextChannel } from 'discord.js';
 import { createDiscordClient } from '../../createDiscordClient';
+import type { PlatformMessageInput } from '../../types';
 import type { PlatformChannel } from '../types';
 import { DiscordChannel } from './DiscordChannel.js';
 import { DiscordMessage } from './DiscordMessage.js';
@@ -28,7 +28,7 @@ export function startDiscord(
   token: string,
   callbacks: {
     onReady: (info: DiscordReadyInfo) => void;
-    onMessage: (message: PlatformMessage) => void;
+    onMessage: (message: PlatformMessageInput) => void;
   },
 ): DiscordHandle {
   const client = createDiscordClient();

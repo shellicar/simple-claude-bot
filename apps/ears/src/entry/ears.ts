@@ -2,7 +2,6 @@ import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
 import { BrainClient } from '../brainClient';
 import type { CommandContext } from '../commands';
@@ -11,6 +10,7 @@ import { earsSchema } from '../earsSchema';
 import { startDiscord } from '../platform/discord/startDiscord';
 import type { PlatformChannel } from '../platform/types';
 import { buildSystemPrompt } from '../systemPrompts';
+import type { PlatformMessageInput } from '../types';
 import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '../workplay.js';
 
 const main = async () => {
@@ -19,7 +19,7 @@ const main = async () => {
   logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
 
   let processing: Promise<void> | undefined;
-  const messageQueue: PlatformMessage[] = [];
+  const messageQueue: PlatformMessageInput[] = [];
 
   const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env, { reportInput: true });
 
@@ -30,8 +30,8 @@ const main = async () => {
   let platformChannel: PlatformChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxEnabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
-  async function dispatchReplies(channel: PlatformChannel, replies: ParsedReply[], messages?: PlatformMessage[]): Promise<void> {
-    const messagesByUserId = new Map<string, PlatformMessage>();
+  async function dispatchReplies(channel: PlatformChannel, replies: ParsedReply[], messages?: PlatformMessageInput[]): Promise<void> {
+    const messagesByUserId = new Map<string, PlatformMessageInput>();
     if (messages) {
       for (const m of messages) {
         messagesByUserId.set(m.authorId, m);

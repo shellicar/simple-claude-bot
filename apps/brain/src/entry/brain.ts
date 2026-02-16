@@ -5,6 +5,7 @@ import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
+import { DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -17,7 +18,6 @@ import { SdkError } from '../errors/SdkError';
 import { getSessionId } from '../getSessionId';
 import { initSessionPaths } from '../initSessionPaths';
 import { pingSDK } from '../ping/pingSDK';
-import { directRequestSchema, resetRequestSchema, respondRequestSchema, sessionSetRequestSchema, unpromptedRequestSchema } from '../requestSchemas';
 import { respondToMessages } from '../respondToMessages';
 import { resetSession } from '../session/resetSession';
 import { setSessionId } from '../session/setSessionId';
@@ -72,7 +72,7 @@ const main = async () => {
 
   app.post('/session', async (c) => {
     try {
-      const { sessionId } = sessionSetRequestSchema.parse(await c.req.json());
+      const { sessionId } = SessionSetRequestSchema.parse(await c.req.json());
       setSessionId(sessionId);
       return c.json({ sessionId } satisfies SessionResponse);
     } catch (error) {
@@ -91,7 +91,7 @@ const main = async () => {
 
   app.post('/respond', async (c) => {
     try {
-      const body = respondRequestSchema.parse(await c.req.json());
+      const body = RespondRequestSchema.parse(await c.req.json());
       const replies = await respondToMessages(audit, body, sandboxConfig);
       return c.json({ replies } satisfies RespondResponse);
     } catch (error) {
@@ -101,7 +101,7 @@ const main = async () => {
 
   app.post('/unprompted', async (c) => {
     try {
-      const body = unpromptedRequestSchema.parse(await c.req.json());
+      const body = UnpromptedRequestSchema.parse(await c.req.json());
       const { replies, spoke } = await sendUnprompted(audit, body, sandboxConfig);
       return c.json({ replies, spoke } satisfies UnpromptedResponse);
     } catch (error) {
@@ -111,7 +111,7 @@ const main = async () => {
 
   app.post('/direct', async (c) => {
     try {
-      const body = directRequestSchema.parse(await c.req.json());
+      const body = DirectRequestSchema.parse(await c.req.json());
       const result = await directQuery(audit, body, sandboxConfig);
       return c.json({ result } satisfies DirectResponse);
     } catch (error) {
@@ -130,7 +130,7 @@ const main = async () => {
 
   app.post('/reset', async (c) => {
     try {
-      const body = resetRequestSchema.parse(await c.req.json());
+      const body = ResetRequestSchema.parse(await c.req.json());
       const result = await resetSession(audit, body, sandboxConfig);
       return c.json({ result } satisfies ResetResponse);
     } catch (error) {
