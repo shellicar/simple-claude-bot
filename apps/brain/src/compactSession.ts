@@ -1,13 +1,14 @@
 import { writeFileSync } from 'node:fs';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
+import type { AuditWriter } from './audit/auditLog';
 import { claudePath, model } from './consts';
 import { executeQuery } from './executeQuery';
 import { claudeGlobals } from './globals';
 import { saveSession } from './session/saveSession';
 import type { SandboxConfig } from './types';
 
-export async function compactSession(sandboxConfig: SandboxConfig): Promise<string> {
+export async function compactSession(audit: AuditWriter, sandboxConfig: SandboxConfig): Promise<string> {
   if (!claudeGlobals.sessionId) {
     logger.warn('No session to compact');
     return 'No session to compact';
@@ -24,7 +25,7 @@ export async function compactSession(sandboxConfig: SandboxConfig): Promise<stri
     resume: claudeGlobals.sessionId,
   } satisfies Options;
 
-  const result = await executeQuery('/compact', '/compact', options, saveSession);
+  const result = await executeQuery(audit, '/compact', '/compact', options, saveSession);
 
   if (claudeGlobals.COMPACT_FILE == null) {
     throw new Error('No compact file');

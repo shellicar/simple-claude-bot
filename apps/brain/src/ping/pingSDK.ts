@@ -1,8 +1,9 @@
+import type { AuditWriter } from '../audit/auditLog';
 import { buildQueryOptions } from '../buildQueryOptions';
 import { executeQuery } from '../executeQuery';
 import type { SandboxConfig } from '../types';
 
-export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
+export async function pingSDK(audit: AuditWriter, sandboxConfig: SandboxConfig): Promise<string> {
   const options = buildQueryOptions({
     systemPrompt: 'Respond with exactly: pong',
     allowedTools: [],
@@ -10,5 +11,5 @@ export async function pingSDK(sandboxConfig: SandboxConfig): Promise<string> {
     sandboxConfig,
   });
 
-  return executeQuery('/ping', 'ping', options, () => {});
+  return executeQuery(audit, '/ping', 'ping', options, () => {});
 }

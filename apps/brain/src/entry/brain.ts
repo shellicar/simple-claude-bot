@@ -9,7 +9,7 @@ import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, Res
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ZodError } from 'zod';
-import { initAuditLog } from '../audit/auditLog';
+import { AuditWriter } from '../audit/auditLog';
 import { brainSchema } from '../brainSchema';
 import { compactSession } from '../compactSession';
 import { directQuery } from '../directQuery';
@@ -32,7 +32,7 @@ const main = async () => {
   const { CLAUDE_CONFIG_DIR, SANDBOX_ENABLED, SANDBOX_DIR, AUDIT_DIR } = brainSchema.parse(env);
 
   initSessionPaths(CLAUDE_CONFIG_DIR);
-  initAuditLog(AUDIT_DIR);
+  const audit = new AuditWriter(AUDIT_DIR);
 
   const sandboxConfig = {
     enabled: SANDBOX_ENABLED,
@@ -83,7 +83,7 @@ const main = async () => {
 
   app.post('/ping', async (c) => {
     try {
-      const result = await pingSDK(sandboxConfig);
+      const result = await pingSDK(audit, sandboxConfig);
       return c.json({ result } satisfies PingResponse);
     } catch (error) {
       return handleError(c, '/ping', error, { result: '' });
@@ -93,7 +93,7 @@ const main = async () => {
   app.post('/respond', async (c) => {
     try {
       const body = respondRequestSchema.parse(await c.req.json());
-      const replies = await respondToMessages(body, sandboxConfig);
+      const replies = await respondToMessages(audit, body, sandboxConfig);
       return c.json({ replies } satisfies RespondResponse);
     } catch (error) {
       return handleError(c, '/respond', error, { replies: [] });
@@ -103,7 +103,7 @@ const main = async () => {
   app.post('/unprompted', async (c) => {
     try {
       const body = unpromptedRequestSchema.parse(await c.req.json());
-      const { replies, spoke } = await sendUnprompted(body, sandboxConfig);
+      const { replies, spoke } = await sendUnprompted(audit, body, sandboxConfig);
       return c.json({ replies, spoke } satisfies UnpromptedResponse);
     } catch (error) {
       return handleError(c, '/unprompted', error, { replies: [], spoke: false });
@@ -113,7 +113,7 @@ const main = async () => {
   app.post('/direct', async (c) => {
     try {
       const body = directRequestSchema.parse(await c.req.json());
-      const result = await directQuery(body, sandboxConfig);
+      const result = await directQuery(audit, body, sandboxConfig);
       return c.json({ result } satisfies DirectResponse);
     } catch (error) {
       return handleError(c, '/direct', error, { result: '' });
@@ -122,7 +122,7 @@ const main = async () => {
 
   app.post('/compact', async (c) => {
     try {
-      const result = await compactSession(sandboxConfig);
+      const result = await compactSession(audit, sandboxConfig);
       return c.json({ result } satisfies CompactResponse);
     } catch (error) {
       return handleError(c, '/compact', error, { result: '' });
@@ -132,7 +132,7 @@ const main = async () => {
   app.post('/reset', async (c) => {
     try {
       const body = resetRequestSchema.parse(await c.req.json());
-      const result = await resetSession(body, sandboxConfig);
+      const result = await resetSession(audit, body, sandboxConfig);
       return c.json({ result } satisfies ResetResponse);
     } catch (error) {
       return handleError(c, '/reset', error, { result: '' });

@@ -4,13 +4,14 @@ import { logger } from '@simple-claude-bot/shared/logger';
 import type { ResetRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
+import type { AuditWriter } from '../audit/auditLog';
 import { buildQueryOptions } from '../buildQueryOptions';
 import { executeQuery } from '../executeQuery';
 import { claudeGlobals } from '../globals';
 import type { SandboxConfig } from '../types';
 import { saveSession } from './saveSession';
 
-export async function resetSession(body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
+export async function resetSession(audit: AuditWriter, body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
   logger.info('Resetting session...');
 
   // Delete old session
@@ -48,7 +49,7 @@ export async function resetSession(body: ResetRequest, sandboxConfig: SandboxCon
     sessionId: undefined,
   });
 
-  const result = await executeQuery('/reset', seedPrompt, options, saveSession);
+  const result = await executeQuery(audit, '/reset', seedPrompt, options, saveSession);
   logger.info(`Session reset complete. New session: ${claudeGlobals.sessionId}. Response: ${result}`);
   return result;
 }

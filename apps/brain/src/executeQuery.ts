@@ -1,7 +1,7 @@
 import type { UUID } from 'node:crypto';
 import { type Options, query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { writeAuditEvent } from './audit/auditLog';
+import type { AuditWriter } from './audit/auditLog';
 import { RateLimitError } from './errors/RateLimitError';
 import { ResultErrorError } from './errors/ResultErrorError';
 import { ResultSuccessError } from './errors/ResultSuccessError';
@@ -10,7 +10,7 @@ import { hasSubType } from './hasSubType';
 import { isRateLimited } from './isRateLimited';
 import { uuidSchema } from './requestSchemas';
 
-export async function executeQuery(endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
+export async function executeQuery(audit: AuditWriter, endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
   const startTime = Date.now();
   const timer = setInterval(() => {
     const elapsed = Math.round((Date.now() - startTime) / 1000);
@@ -24,7 +24,7 @@ export async function executeQuery(endpoint: string, prompt: string | AsyncItera
     const q = query({ prompt, options });
 
     for await (const msg of q) {
-      writeAuditEvent(endpoint, msg);
+      audit.write(endpoint, msg);
       if (hasSubType(msg)) {
         logger.debug(`SDK message: ${msg.type}/${(msg as { subtype?: string }).subtype}`);
       }
