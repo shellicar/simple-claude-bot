@@ -82,6 +82,7 @@ export async function executeQuery(audit: AuditWriter, endpoint: string, prompt:
             throw new ResultSuccessError(msg.result, msg.stop_reason);
           }
           result = msg.result;
+          logger.info(`SDK success result: ${result}`);
         } else {
           logger.error('SDK error', msg);
           throw new ResultErrorError(msg.subtype, msg.stop_reason, msg.errors);

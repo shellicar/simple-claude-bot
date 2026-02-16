@@ -20,5 +20,6 @@ block 'printenv|/proc/.*/environ'
 block '/audit\b'
 block '\bcurl\b.*\b(credentials|\.claude)\b'
 block '\bsocat\b.*\b(credentials|\.claude)\b'
+block '\bgh\b.*--web\b'
 
 exit 0

@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
+    "test": "turbo test",
     "type-check": "turbo type-check",
     "ci:fix": "biome check --write",
     "knip": "knip",
