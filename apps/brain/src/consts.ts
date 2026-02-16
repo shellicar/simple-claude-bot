@@ -1,6 +1,6 @@
 import type { HookCallbackMatcher, HookEvent } from '@anthropic-ai/claude-agent-sdk';
 import { logHook } from './logHook';
-import type { ClaudeModels, ImageContentType } from './types';
+import type { ClaudeModels } from './types';
 
 export const model: ClaudeModels = 'claude-opus-4-6';
 
@@ -28,5 +28,3 @@ export const sdkHooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {
 export const claudePath = process.env.CLAUDE_PATH ?? 'claude';
 
 export const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'BANANABOT_BUILD_TIME', 'BANANABOT_BUILD_HASH']);
-
-export const IMAGE_CONTENT_TYPES = new Set<ImageContentType>(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
