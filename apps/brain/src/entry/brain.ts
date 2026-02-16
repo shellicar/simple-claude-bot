@@ -43,8 +43,10 @@ const main = async () => {
   logger.info(`Sandbox ${sandboxConfig.enabled ? 'enabled' : 'disabled'} (cwd: ${sandboxConfig.directory})`);
 
   function handleError(c: Context, route: string, error: unknown, errorBody: Record<string, unknown>) {
-    logger.error(`${route} error`);
-    logger.error(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : 'Error';
+
+    logger.error(`${route} error: ${errorName}: ${errorMessage}`);
 
     let statusCode: ContentfulStatusCode = 500;
     if (error instanceof ZodError) {
@@ -53,11 +55,8 @@ const main = async () => {
       statusCode = error.httpCode;
     }
 
-    logger.info('Http Response', {
-      status: statusCode,
-      body: { ...errorBody, error },
-    });
-    return c.json({ ...errorBody, error }, statusCode);
+    logger.info('Http Response', { status: statusCode, error: errorName });
+    return c.json({ ...errorBody, error: errorMessage }, statusCode);
   }
 
   const app = new Hono();

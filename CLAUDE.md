@@ -86,6 +86,8 @@ pnpm knip           # Detect unused exports/dependencies
 
 - `/compact` can fail with "No conversation found with session ID" — `cwd` is now passed but compact still doesn't use `buildQueryOptions` (no hooks, no settingSources). May need further investigation.
 - **Discord attachment handling** — Images are downloaded to base64 for session stability. Non-image attachments (e.g. text files) are currently skipped with a warning to avoid session corruption (expired CDN URLs on resume). These should be downloaded and inlined as text content.
+- **`UsageLimitError` on `stop_sequence` is too broad** — API 400 errors (e.g. expired image URLs) also have `stop_reason: 'stop_sequence'` and get incorrectly classified as usage limits (HTTP 502). Needs structured result parsing to distinguish API errors from actual usage limits.
+- **`buildContentBlocks` uses `as ImageContentType` cast** — narrowing cast on `attachment.contentType`. Safe in practice since the value is checked against `IMAGE_CONTENT_TYPES`, but could be replaced with a type guard.
 
 ## Future Ideas
 
