@@ -3,14 +3,14 @@
   "tags": ["-lintignore"],
   "workspaces": {
     "apps/brain": {
-      "entry": ["src/*.ts", "inject/*.ts"],
+      "entry": ["src/entry/*.ts", "inject/*.ts"],
       "ignoreDependencies": ["@anthropic-ai/claude-code"]
     },
     "apps/ears": {
-      "entry": ["src/*.ts", "inject/*.ts"]
+      "entry": ["src/entry/*.ts", "inject/*.ts"]
     },
     "apps/config": {
-      "entry": ["src/*.ts", "inject/*.ts"]
+      "entry": ["src/entry/*.ts", "inject/*.ts"]
     },
     "packages/shared": {
       "entry": ["src/**/*.ts"]

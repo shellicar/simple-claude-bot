@@ -1,5 +1,6 @@
 import type { Base64PDFSource, ContentBlockParam, DocumentBlockParam, TextBlockParam } from '@anthropic-ai/sdk/resources';
 import { Instant } from '@js-joda/core';
+import { logger } from '@simple-claude-bot/shared/logger';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 import type { PlatformMessageOutput } from './types';
@@ -18,6 +19,8 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
       if (attachment.data) {
         switch (attachment.contentType) {
           case 'text/plain': {
+            logger.info(`Adding ${attachment.contentType} attachment`);
+
             blocks.push({
               type: 'text',
               text: attachment.data,
@@ -25,6 +28,7 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
             break;
           }
           case 'application/pdf': {
+            logger.info(`Adding ${attachment.contentType} attachment`);
             blocks.push({
               type: 'document',
               source: {
@@ -39,6 +43,7 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
           case 'image/png':
           case 'image/gif':
           case 'image/webp': {
+            logger.info(`Adding ${attachment.contentType} attachment`);
             blocks.push({
               type: 'image',
               source: {
