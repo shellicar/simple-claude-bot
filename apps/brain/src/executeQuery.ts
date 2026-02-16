@@ -2,13 +2,14 @@ import type { UUID } from 'node:crypto';
 import { type Options, query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { AuditWriter } from './audit/auditLog';
+import { ApiError } from './errors/ApiError';
 import { RateLimitError } from './errors/RateLimitError';
 import { ResultErrorError } from './errors/ResultErrorError';
 import { ResultSuccessError } from './errors/ResultSuccessError';
 import { UsageLimitError } from './errors/UsageLimitError';
 import { hasSubType } from './hasSubType';
-import { isRateLimited } from './isRateLimited';
 import { uuidSchema } from './requestSchemas';
+import { SdkResult } from './sdk/SdkResult';
 
 export async function executeQuery(audit: AuditWriter, endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
   const startTime = Date.now();
@@ -60,9 +61,16 @@ export async function executeQuery(audit: AuditWriter, endpoint: string, prompt:
 
         if (msg.subtype === 'success') {
           if (msg.is_error) {
-            if (isRateLimited(msg)) {
+            const sdkResult = new SdkResult(msg);
+
+            if (sdkResult.isRateLimited) {
               logger.warn(`Rate limited: ${msg.result}`);
               throw new RateLimitError(msg.result);
+            }
+
+            if (sdkResult.apiError) {
+              logger.error(`API error ${sdkResult.apiError.statusCode}: ${sdkResult.apiError.errorType}: ${sdkResult.apiError.errorMessage}`);
+              throw new ApiError(sdkResult.apiError.statusCode, sdkResult.apiError.errorType, sdkResult.apiError.errorMessage);
             }
 
             logger.error('SDK error', msg);
