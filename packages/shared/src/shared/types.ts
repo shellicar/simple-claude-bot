@@ -1,5 +1,3 @@
-import type { PlatformMessage } from './platform/types';
-
 export interface ParsedReply {
   replyTo?: string;
   ping?: boolean;
@@ -7,34 +5,15 @@ export interface ParsedReply {
   message: string;
 }
 
-export interface RespondRequest {
-  readonly messages: PlatformMessage[];
-  readonly systemPrompt: string;
-  readonly allowedTools: string[];
-}
-
 export interface RespondResponse {
   readonly replies: ParsedReply[];
   readonly error?: string;
-}
-
-export interface UnpromptedRequest {
-  readonly prompt: string;
-  readonly systemPrompt: string;
-  readonly allowedTools?: string[];
-  readonly maxTurns?: number;
 }
 
 export interface UnpromptedResponse {
   readonly replies: ParsedReply[];
   readonly spoke: boolean;
   readonly error?: string;
-}
-
-export interface DirectRequest {
-  readonly prompt: string;
-  readonly systemPrompt: string;
-  readonly allowedTools: string[];
 }
 
 export interface DirectResponse {
@@ -45,11 +24,6 @@ export interface DirectResponse {
 export interface CompactResponse {
   readonly result: string;
   readonly error?: string;
-}
-
-export interface ResetRequest {
-  readonly messages: PlatformMessage[];
-  readonly systemPrompt: string;
 }
 
 export interface ResetResponse {
@@ -68,8 +42,4 @@ export interface PingResponse {
 
 export interface SessionResponse {
   readonly sessionId: string | null;
-}
-
-export interface SessionSetRequest {
-  readonly sessionId: string;
 }

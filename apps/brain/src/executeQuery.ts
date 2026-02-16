@@ -1,6 +1,7 @@
 import type { UUID } from 'node:crypto';
 import { type Options, query, type SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
+import { UuidSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { AuditWriter } from './audit/auditLog';
 import { ApiError } from './errors/ApiError';
 import { RateLimitError } from './errors/RateLimitError';
@@ -8,7 +9,6 @@ import { ResultErrorError } from './errors/ResultErrorError';
 import { ResultSuccessError } from './errors/ResultSuccessError';
 import { UsageLimitError } from './errors/UsageLimitError';
 import { hasSubType } from './hasSubType';
-import { uuidSchema } from './requestSchemas';
 import { SdkResult } from './sdk/SdkResult';
 
 export async function executeQuery(audit: AuditWriter, endpoint: string, prompt: string | AsyncIterable<SDKUserMessage>, options: Options, onSessionId: (id: UUID) => void): Promise<string> {
@@ -31,7 +31,7 @@ export async function executeQuery(audit: AuditWriter, endpoint: string, prompt:
       }
       if (msg.type === 'system' && msg.subtype === 'init') {
         logger.info(`SDK init: session=${msg.session_id} model=${msg.model} permissionMode=${msg.permissionMode} tools=${msg.tools.join(',')}`);
-        onSessionId(uuidSchema.parse(msg.session_id));
+        onSessionId(UuidSchema.parse(msg.session_id));
       }
       if (msg.type === 'tool_use_summary') {
         logger.info(`SDK tool use: ${msg.summary}`);

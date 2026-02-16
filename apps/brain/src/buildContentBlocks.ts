@@ -1,13 +1,12 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources';
 import { Instant } from '@js-joda/core';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 import { IMAGE_CONTENT_TYPES } from './consts';
-import type { ImageContentType } from './types';
+import type { ImageContentType, PlatformMessageOutput } from './types';
 
-export function buildContentBlocks(messages: PlatformMessage[]): ContentBlockParam[] {
+export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBlockParam[] {
   const blocks: ContentBlockParam[] = [];
 
   for (const m of messages) {

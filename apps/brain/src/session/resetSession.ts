@@ -1,17 +1,16 @@
 import { existsSync, unlinkSync } from 'node:fs';
 import { Instant } from '@js-joda/core';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ResetRequest } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 import type { AuditWriter } from '../audit/auditLog';
 import { buildQueryOptions } from '../buildQueryOptions';
 import { executeQuery } from '../executeQuery';
 import { claudeGlobals } from '../globals';
-import type { SandboxConfig } from '../types';
+import type { ResetRequestOutput, SandboxConfig } from '../types';
 import { saveSession } from './saveSession';
 
-export async function resetSession(audit: AuditWriter, body: ResetRequest, sandboxConfig: SandboxConfig): Promise<string> {
+export async function resetSession(audit: AuditWriter, body: ResetRequestOutput, sandboxConfig: SandboxConfig): Promise<string> {
   logger.info('Resetting session...');
 
   // Delete old session

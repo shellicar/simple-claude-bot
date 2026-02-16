@@ -1,7 +1,7 @@
 import type { UUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { uuidSchema } from '../requestSchemas';
+import { UuidSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 
 export function loadSessionId(file: string): UUID | undefined {
   if (!existsSync(file)) {
@@ -11,7 +11,7 @@ export function loadSessionId(file: string): UUID | undefined {
   if (!value) {
     return undefined;
   }
-  const result = uuidSchema.safeParse(value);
+  const result = UuidSchema.safeParse(value);
   if (!result.success) {
     logger.warn(`Ignoring invalid session ID from ${file}: ${value}`);
     return undefined;

@@ -1,6 +1,6 @@
-import type { PlatformMessage } from '@simple-claude-bot/shared/shared/platform/types';
 import type { Message, TextChannel } from 'discord.js';
 import { chunkMessage } from '../../chunkMessage';
+import type { PlatformMessageInput } from '../../types';
 import type { PlatformChannel } from '../types';
 import { DiscordMessage } from './DiscordMessage.js';
 
@@ -9,7 +9,7 @@ export class DiscordChannel implements PlatformChannel {
 
   public constructor(private readonly channel: TextChannel) {}
 
-  public trackMessage(message: PlatformMessage): void {
+  public trackMessage(message: PlatformMessageInput): void {
     if (message instanceof DiscordMessage) {
       this.messagesByAuthorId.set(message.authorId, message._raw);
     }
@@ -25,7 +25,7 @@ export class DiscordChannel implements PlatformChannel {
     }
   }
 
-  public async replyTo(message: PlatformMessage, content: string): Promise<void> {
+  public async replyTo(message: PlatformMessageInput, content: string): Promise<void> {
     const target = this.messagesByAuthorId.get(message.authorId);
     for (const chunk of chunkMessage(content)) {
       if (target) {
@@ -40,7 +40,7 @@ export class DiscordChannel implements PlatformChannel {
     await this.channel.sendTyping();
   }
 
-  public async fetchHistory(limit: number): Promise<PlatformMessage[]> {
+  public async fetchHistory(limit: number): Promise<PlatformMessageInput[]> {
     const messages: Message[] = [];
     let lastId: string | undefined;
 
