@@ -2,7 +2,7 @@ FROM node:22-slim AS base
 
 # Install sandbox dependencies and tools
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends bubblewrap libicu-dev socat curl git ca-certificates gpg jq python3 python3-pip python3-venv openssh-client \
+  && apt-get install -y --no-install-recommends bubblewrap libicu-dev socat curl git ca-certificates gpg gpg-agent jq python3 python3-pip python3-venv openssh-client \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
