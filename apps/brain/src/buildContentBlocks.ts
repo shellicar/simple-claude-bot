@@ -4,6 +4,7 @@ import { logger } from '@simple-claude-bot/shared/logger';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 import { parseContentType } from './parseContentType';
+import { sanitiseSystemReminders } from './sanitiseInput';
 import type { PlatformMessageOutput } from './types';
 
 export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBlockParam[] {
@@ -11,9 +12,10 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
 
   for (const m of messages) {
     const zdt = Instant.ofEpochMilli(m.createdTimestamp).atZone(zone);
+    const content = sanitiseSystemReminders(m.content);
     blocks.push({
       type: 'text',
-      text: `[${zdt.format(timestampFormatter)}] ${m.authorDisplayName} (${m.authorId}): ${m.content}`,
+      text: `[${zdt.format(timestampFormatter)}] ${m.authorDisplayName} (${m.authorId}): ${content}`,
     });
 
     if (m.attachments.length > 0) {
@@ -30,7 +32,7 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
       if (attachment.data) {
         switch (baseType) {
           case 'text/plain': {
-            const text = Buffer.from(attachment.data, 'base64').toString();
+            const text = sanitiseSystemReminders(Buffer.from(attachment.data, 'base64').toString());
             logger.info(`Adding ${baseType} attachment`, {
               text,
             });
