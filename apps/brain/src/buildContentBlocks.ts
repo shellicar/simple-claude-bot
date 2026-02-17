@@ -20,7 +20,7 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
       logger.info(`Processing ${m.attachments.length} attachments`);
     }
     for (const attachment of m.attachments) {
-      const { baseType } = attachment.contentType ? parseContentType(attachment.contentType) : { baseType: null };
+      const { baseType } = parseContentType(attachment.contentType);
       logger.info('Attachment', {
         contentType: attachment.contentType,
         baseType,
