@@ -1,6 +1,6 @@
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
-import type { DirectRequestInput, ResetRequestInput, RespondRequestInput, SessionSetRequestInput, UnpromptedRequestInput } from './types';
+import type { CompactRequestInput, DirectRequestInput, ResetRequestInput, RespondRequestInput, SessionSetRequestInput, UnpromptedRequestInput } from './types';
 
 const TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -27,8 +27,8 @@ export class BrainClient {
     return this.post<DirectRequestInput, DirectResponse>('/direct', request);
   }
 
-  public async compact(): Promise<CompactResponse> {
-    return this.post<Record<string, never>, CompactResponse>('/compact', {});
+  public async compact(request: CompactRequestInput = {}): Promise<CompactResponse> {
+    return this.post<CompactRequestInput, CompactResponse>('/compact', request);
   }
 
   public async reset(request: ResetRequestInput): Promise<ResetResponse> {

@@ -45,3 +45,7 @@ export const ResetRequestSchema = z.object({
 export const SessionSetRequestSchema = z.object({
   sessionId: UuidSchema,
 });
+
+export const CompactRequestSchema = z.object({
+  resumeSessionAt: UuidSchema.optional(),
+});

@@ -5,7 +5,7 @@ import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import { DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
+import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
@@ -121,7 +121,8 @@ const main = async () => {
 
   app.post('/compact', async (c) => {
     try {
-      const result = await compactSession(audit, sandboxConfig);
+      const body = CompactRequestSchema.parse(await c.req.json());
+      const result = await compactSession(audit, sandboxConfig, body.resumeSessionAt);
       return c.json({ result } satisfies CompactResponse);
     } catch (error) {
       return handleError(c, '/compact', error, { result: '' });
