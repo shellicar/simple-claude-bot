@@ -51,6 +51,32 @@ describe('parseResponse', () => {
       expect(result[1].message).toBe('next block');
     });
 
+    it('does not split on mid-line ␞', () => {
+      // Bug: bot sends a lone ␞ mid-line (not on its own line) and the parser
+      // incorrectly splits the message into two blocks
+      const input = `message: here is a ${RS} in the middle of a line`;
+
+      const result = parseResponse(input);
+      expect(result).toHaveLength(1);
+      expect(result[0].message).toBe(`here is a ${RS} in the middle of a line`);
+    });
+
+    it('does not split on ␞ at end of a line with other content', () => {
+      const input = `message: some text${RS}\nmore text on next line`;
+
+      const result = parseResponse(input);
+      expect(result).toHaveLength(1);
+      expect(result[0].message).toBe(`some text${RS}\nmore text on next line`);
+    });
+
+    it('does not split on ␞ at start of a line with other content', () => {
+      const input = `message: first line\n${RS}more text`;
+
+      const result = parseResponse(input);
+      expect(result).toHaveLength(1);
+      expect(result[0].message).toBe(`first line\n${RS}more text`);
+    });
+
     it('adjacent ␞␞␞ is ambiguous — treated as escaped + trailing', () => {
       // ␞␞␞ with no separation: the lookbehind/lookahead means none of the
       // three match as a lone delimiter. This documents the known edge case.

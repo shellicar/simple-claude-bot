@@ -20,6 +20,9 @@ import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
  */
 const RS = '\u241E';
 
+/** Matches a lone ␞ on its own line (with optional horizontal whitespace). */
+const RS_LINE = new RegExp(`^[ \\t]*(?<!${RS})${RS}(?!${RS})[ \\t]*$`, 'm');
+
 export function parseResponse(raw: string): ParsedReply[] {
   const blocks = splitBlocks(raw).filter((b) => b.trim().length > 0);
 
@@ -65,10 +68,9 @@ function splitBlocks(raw: string): string[] {
   return raw.split(/^\s*---\s*$/m);
 }
 
-/** Split on lone ␞, then unescape ␞␞ → ␞ in each block. */
+/** Split on lone ␞ that is on its own line, then unescape ␞␞ → ␞ in each block. */
 function splitOnRecordSeparator(raw: string): string[] {
-  // Split on a single ␞ not adjacent to another ␞
-  const blocks = raw.split(new RegExp(`(?<!${RS})${RS}(?!${RS})`));
+  const blocks = raw.split(RS_LINE);
   // Unescape: ␞␞ → ␞
   return blocks.map((b) => b.replaceAll(RS + RS, RS));
 }
