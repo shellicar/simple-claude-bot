@@ -1,6 +1,6 @@
 import type { UUID } from 'node:crypto';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { DirectRequestSchema, PlatformAttachmentSchema, PlatformMessageSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
+import type { CompactRequestSchema, DirectRequestSchema, PlatformAttachmentSchema, PlatformMessageSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { z } from 'zod';
 
 export type PlatformAttachmentOutput = z.output<typeof PlatformAttachmentSchema>;
@@ -10,6 +10,7 @@ export type UnpromptedRequestOutput = z.output<typeof UnpromptedRequestSchema>;
 export type DirectRequestOutput = z.output<typeof DirectRequestSchema>;
 export type ResetRequestOutput = z.output<typeof ResetRequestSchema>;
 export type SessionSetRequestOutput = z.output<typeof SessionSetRequestSchema>;
+export type CompactRequestOutput = z.output<typeof CompactRequestSchema>;
 
 export interface SandboxConfig {
   readonly enabled: boolean;

@@ -90,9 +90,14 @@ async function handlePrompt(ctx: CommandContext, _args: string[]): Promise<void>
   }
 }
 
-async function handleCompact(ctx: CommandContext, _args: string[]): Promise<void> {
-  logger.info('Compact command received');
-  const response = await ctx.brain.compact();
+async function handleCompact(ctx: CommandContext, args: string[]): Promise<void> {
+  const resumeSessionAt = args[0]?.trim() || undefined;
+  if (resumeSessionAt) {
+    logger.info(`Compact-at command received: ${resumeSessionAt}`);
+  } else {
+    logger.info('Compact command received');
+  }
+  const response = await ctx.brain.compact(resumeSessionAt ? { resumeSessionAt } : {});
   if (response.error) {
     logger.error(`Compact error: ${response.error}`);
   } else {
@@ -158,6 +163,7 @@ const commands: Record<string, Command> = {
   '/session': { sdk: false, channel: false, handler: handleSession },
   '/prompt': { sdk: true, channel: true, handler: handlePrompt },
   '/compact': { sdk: true, channel: false, handler: handleCompact },
+  '/compact-at': { sdk: true, channel: false, handler: handleCompact },
   '/reset': { sdk: true, channel: true, handler: handleReset },
   '/ping': { sdk: true, channel: false, handler: handlePing },
   '/direct': { sdk: true, channel: false, handler: handleDirect },

@@ -1,3 +1,4 @@
+import type { UUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import type { Options } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
@@ -8,13 +9,13 @@ import { claudeGlobals } from './globals';
 import { saveSession } from './session/saveSession';
 import type { SandboxConfig } from './types';
 
-export async function compactSession(audit: AuditWriter, sandboxConfig: SandboxConfig): Promise<string> {
+export async function compactSession(audit: AuditWriter, sandboxConfig: SandboxConfig, resumeSessionAt?: UUID): Promise<string> {
   if (!claudeGlobals.sessionId) {
     logger.warn('No session to compact');
     return 'No session to compact';
   }
 
-  logger.info(`Compacting session ${claudeGlobals.sessionId}...`);
+  logger.info(`Compacting session ${claudeGlobals.sessionId}...${resumeSessionAt ? ` at ${resumeSessionAt}` : ''}`);
 
   const options = {
     pathToClaudeCodeExecutable: claudePath,
@@ -23,6 +24,7 @@ export async function compactSession(audit: AuditWriter, sandboxConfig: SandboxC
     allowedTools: [] as string[],
     maxTurns: 1,
     resume: claudeGlobals.sessionId,
+    ...(resumeSessionAt ? { resumeSessionAt } : {}),
   } satisfies Options;
 
   const result = await executeQuery(audit, '/compact', '/compact', options, saveSession);
