@@ -33,7 +33,9 @@ WORKDIR /app
 # Install runtime dependencies (claude-agent-sdk is external, claude-code is a subprocess)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/brain/package.json apps/brain/package.json
-RUN pnpm install --prod --frozen-lockfile --filter=@simple-claude-bot/brain
+COPY packages/brain-core/package.json packages/brain-core/package.json
+COPY packages/shared/package.json packages/shared/package.json
+RUN pnpm install --prod --frozen-lockfile --filter=@simple-claude-bot/brain...
 
 WORKDIR /app/apps/brain
 

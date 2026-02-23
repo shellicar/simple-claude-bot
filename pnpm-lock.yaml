@@ -35,6 +35,9 @@ importers:
 
   apps/brain:
     dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.2.41
+        version: 0.2.41(zod@4.3.6)
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.11.10)
@@ -51,9 +54,6 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
-      '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.2.41
-        version: 0.2.41(zod@4.3.6)
       '@shellicar/build-clean':
         specifier: ^1.2.2
         version: 1.2.2(esbuild@0.27.3)(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1)(tsx@4.21.0))
