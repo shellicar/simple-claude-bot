@@ -1,0 +1,9 @@
+import '../shared/startup';
+import '../functions/health';
+import '../functions/session';
+import '../functions/ping';
+import '../functions/respond';
+import '../functions/unprompted';
+import '../functions/direct';
+import '../functions/compact';
+import '../functions/reset';

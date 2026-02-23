@@ -4,25 +4,25 @@ import { resolve } from 'node:path';
 import { env } from 'node:process';
 import { serve } from '@hono/node-server';
 import versionInfo from '@shellicar/build-version/version';
+import { AuditWriter } from '@simple-claude-bot/brain-core/audit/auditLog';
+import { brainSchema } from '@simple-claude-bot/brain-core/brainSchema';
+import { compactSession } from '@simple-claude-bot/brain-core/compactSession';
+import { directQuery } from '@simple-claude-bot/brain-core/directQuery';
+import { SdkError } from '@simple-claude-bot/brain-core/errors/SdkError';
+import { getSessionId } from '@simple-claude-bot/brain-core/getSessionId';
+import { initSessionPaths } from '@simple-claude-bot/brain-core/initSessionPaths';
+import { pingSDK } from '@simple-claude-bot/brain-core/ping/pingSDK';
+import { respondToMessages } from '@simple-claude-bot/brain-core/respondToMessages';
+import { resetSession } from '@simple-claude-bot/brain-core/session/resetSession';
+import { setSessionId } from '@simple-claude-bot/brain-core/session/setSessionId';
+import type { SandboxConfig } from '@simple-claude-bot/brain-core/types';
+import { sendUnprompted } from '@simple-claude-bot/brain-core/unsolicited/sendUnprompted';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ZodError } from 'zod';
-import { AuditWriter } from '../audit/auditLog';
-import { brainSchema } from '../brainSchema';
-import { compactSession } from '../compactSession';
-import { directQuery } from '../directQuery';
-import { SdkError } from '../errors/SdkError';
-import { getSessionId } from '../getSessionId';
-import { initSessionPaths } from '../initSessionPaths';
-import { pingSDK } from '../ping/pingSDK';
-import { respondToMessages } from '../respondToMessages';
-import { resetSession } from '../session/resetSession';
-import { setSessionId } from '../session/setSessionId';
-import type { SandboxConfig } from '../types';
-import { sendUnprompted } from '../unsolicited/sendUnprompted';
 
 const main = async () => {
   const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
@@ -52,7 +52,7 @@ const main = async () => {
     if (error instanceof ZodError) {
       statusCode = 400;
     } else if (error instanceof SdkError) {
-      statusCode = error.httpCode;
+      statusCode = error.httpCode as ContentfulStatusCode;
     }
 
     logger.info('Http Response', { status: statusCode, error: errorName });

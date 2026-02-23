@@ -35,24 +35,12 @@ importers:
 
   apps/brain:
     dependencies:
-      '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.2.41
-        version: 0.2.41(zod@4.3.6)
-      '@anthropic-ai/claude-code':
-        specifier: ^2.1.41
-        version: 2.1.41
-      '@anthropic-ai/sdk':
-        specifier: ^0.74.0
-        version: 0.74.0(zod@4.3.6)
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.9(hono@4.11.10)
-      '@js-joda/core':
-        specifier: ^5.7.0
-        version: 5.7.0
-      '@js-joda/timezone':
-        specifier: ^2.23.0
-        version: 2.23.0(@js-joda/core@5.7.0)
+      '@simple-claude-bot/brain-core':
+        specifier: workspace:*
+        version: link:../../packages/brain-core
       '@simple-claude-bot/shared':
         specifier: workspace:^
         version: link:../../packages/shared
@@ -63,6 +51,9 @@ importers:
         specifier: ^4.3.6
         version: 4.3.6
     devDependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.2.41
+        version: 0.2.41(zod@4.3.6)
       '@shellicar/build-clean':
         specifier: ^1.2.2
         version: 1.2.2(esbuild@0.27.3)(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1)(tsx@4.21.0))
@@ -84,6 +75,43 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.2.3)(jiti@2.6.1)(tsx@4.21.0)
+
+  apps/brain-azure:
+    dependencies:
+      '@azure/functions':
+        specifier: ^4.11.2
+        version: 4.11.2
+      '@simple-claude-bot/brain-core':
+        specifier: workspace:*
+        version: link:../../packages/brain-core
+      '@simple-claude-bot/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@shellicar/build-clean':
+        specifier: ^1.2.2
+        version: 1.2.2(esbuild@0.27.3)(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1)(tsx@4.21.0))
+      '@shellicar/build-version':
+        specifier: ^1.3.3
+        version: 1.3.3(esbuild@0.27.3)(vite@7.3.1(@types/node@25.2.3)(jiti@2.6.1)(tsx@4.21.0))
+      '@tsconfig/node22':
+        specifier: ^22.0.5
+        version: 22.0.5
+      esbuild:
+        specifier: ^0.27.3
+        version: 0.27.3
+      glob:
+        specifier: ^13.0.3
+        version: 13.0.3
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   apps/config:
     dependencies:
@@ -159,6 +187,37 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/brain-core:
+    dependencies:
+      '@anthropic-ai/claude-agent-sdk':
+        specifier: ^0.2.41
+        version: 0.2.41(zod@4.3.6)
+      '@anthropic-ai/claude-code':
+        specifier: ^2.1.41
+        version: 2.1.41
+      '@anthropic-ai/sdk':
+        specifier: ^0.74.0
+        version: 0.74.0(zod@4.3.6)
+      '@js-joda/core':
+        specifier: ^5.7.0
+        version: 5.7.0
+      '@js-joda/timezone':
+        specifier: ^2.23.0
+        version: 2.23.0(@js-joda/core@5.7.0)
+      '@simple-claude-bot/shared':
+        specifier: workspace:*
+        version: link:../shared
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@tsconfig/node22':
+        specifier: ^22.0.5
+        version: 22.0.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/shared:
     dependencies:
       '@js-joda/core':
@@ -205,6 +264,14 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@azure/functions-extensions-base@0.2.0':
+    resolution: {integrity: sha512-ncCkHBNQYJa93dBIh+toH0v1iSgCzSo9tr94s6SMBe7DPWREkaWh8cq33A5P4rPSFX1g5W+3SPvIzDr/6/VOWQ==}
+    engines: {node: '>=18.0'}
+
+  '@azure/functions@4.11.2':
+    resolution: {integrity: sha512-U7qpPo0pUxDfdP3Q8gO5GLtust94nh8+RtIUvEKE4qU9yuDhL2vU1zzanuzkaV2j/TFv+EEmN8QDtchAgpeffw==}
+    engines: {node: '>=20.0'}
 
   '@babel/helper-string-parser@7.27.1':
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
@@ -1085,6 +1152,10 @@ packages:
     resolution: {integrity: sha512-ezmVcLR3xAVp8kYOm4GS45ZLLgIE6SPAFoduLr6hTDajwb3KZ2F46gulK3XpcwRFb5KKGCSezCBAY4Dw4HsyXA==}
     engines: {node: '>=18'}
 
+  cookie@0.7.2:
+    resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
+    engines: {node: '>= 0.6'}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -1764,6 +1835,13 @@ snapshots:
     optionalDependencies:
       zod: 4.3.6
 
+  '@azure/functions-extensions-base@0.2.0': {}
+
+  '@azure/functions@4.11.2':
+    dependencies:
+      '@azure/functions-extensions-base': 0.2.0
+      cookie: 0.7.2
+
   '@babel/helper-string-parser@7.27.1': {}
 
   '@babel/helper-validator-identifier@7.28.5': {}
@@ -2388,6 +2466,8 @@ snapshots:
     dependencies:
       color-convert: 3.1.3
       color-string: 2.1.4
+
+  cookie@0.7.2: {}
 
   cross-spawn@7.0.6:
     dependencies:
