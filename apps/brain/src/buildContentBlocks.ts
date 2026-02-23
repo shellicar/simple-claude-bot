@@ -32,9 +32,14 @@ export function buildContentBlocks(messages: PlatformMessageOutput[]): ContentBl
       if (attachment.data) {
         switch (baseType) {
           case 'text/plain': {
-            const text = sanitiseSystemReminders(Buffer.from(attachment.data, 'base64').toString());
+            const MAX_TEXT_LENGTH = 10_000;
+            const fullText = sanitiseSystemReminders(Buffer.from(attachment.data, 'base64').toString());
+            const truncated = fullText.length > MAX_TEXT_LENGTH;
+            const text = truncated ? `${fullText.slice(0, MAX_TEXT_LENGTH)}\n\n[truncated: original was ${fullText.length.toLocaleString()} characters, showing first ${MAX_TEXT_LENGTH.toLocaleString()}]` : fullText;
             logger.info(`Adding ${baseType} attachment`, {
               text,
+              truncated,
+              originalLength: fullText.length,
             });
             blocks.push({
               type: 'text',
