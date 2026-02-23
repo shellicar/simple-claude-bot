@@ -1,16 +1,16 @@
 import { app } from '@azure/functions';
-import { compactSession } from '@simple-claude-bot/brain-core/compactSession';
-import { CompactRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { CompactResponse } from '@simple-claude-bot/shared/shared/types';
-import { handleError, parseJsonBody } from '../shared/handleError';
-import { audit, sandboxConfig } from '../shared/startup';
 
 app.http('compact', {
   methods: ['POST'],
   authLevel: 'function',
   route: 'compact',
   handler: async (request) => {
+    const { handleError, parseJsonBody } = await import('../shared/handleError');
     try {
+      const { audit, sandboxConfig } = await import('../shared/startup');
+      const { compactSession } = await import('@simple-claude-bot/brain-core/compactSession');
+      const { CompactRequestSchema } = await import('@simple-claude-bot/shared/shared/platform/schema');
       const body = CompactRequestSchema.parse(await parseJsonBody(request));
       const result = await compactSession(audit, sandboxConfig, body.resumeSessionAt);
       return {

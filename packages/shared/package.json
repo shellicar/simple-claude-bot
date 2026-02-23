@@ -1,6 +1,7 @@
 {
   "name": "@simple-claude-bot/shared",
   "type": "module",
+  "version": "0.0.0",
   "scripts": {
     "build": "tsc --build",
     "type-check": "tsc -p tsconfig.check.json"

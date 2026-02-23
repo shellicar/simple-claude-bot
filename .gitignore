@@ -5,10 +5,10 @@ conversation.json
 dist/
 node_modules/
 *.tsbuildinfo
-sandbox/
+./sandbox/
 
 .claude-bot*/
 .turbo/
 
-.claude/
+./.claude/
 reference/

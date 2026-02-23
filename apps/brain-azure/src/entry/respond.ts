@@ -1,16 +1,16 @@
 import { app } from '@azure/functions';
-import { respondToMessages } from '@simple-claude-bot/brain-core/respondToMessages';
-import { RespondRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { RespondResponse } from '@simple-claude-bot/shared/shared/types';
-import { handleError, parseJsonBody } from '../shared/handleError';
-import { audit, sandboxConfig } from '../shared/startup';
 
 app.http('respond', {
   methods: ['POST'],
   authLevel: 'function',
   route: 'respond',
   handler: async (request) => {
+    const { handleError, parseJsonBody } = await import('../shared/handleError');
     try {
+      const { audit, sandboxConfig } = await import('../shared/startup');
+      const { respondToMessages } = await import('@simple-claude-bot/brain-core/respondToMessages');
+      const { RespondRequestSchema } = await import('@simple-claude-bot/shared/shared/platform/schema');
       const body = RespondRequestSchema.parse(await parseJsonBody(request));
       const replies = await respondToMessages(audit, body, sandboxConfig);
       return {

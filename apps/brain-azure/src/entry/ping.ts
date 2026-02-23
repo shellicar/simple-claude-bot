@@ -1,15 +1,15 @@
 import { app } from '@azure/functions';
-import { pingSDK } from '@simple-claude-bot/brain-core/ping/pingSDK';
 import type { PingResponse } from '@simple-claude-bot/shared/shared/types';
-import { handleError } from '../shared/handleError';
-import { audit, sandboxConfig } from '../shared/startup';
 
 app.http('ping', {
   methods: ['POST'],
   authLevel: 'function',
   route: 'ping',
   handler: async () => {
+    const { handleError } = await import('../shared/handleError');
     try {
+      const { audit, sandboxConfig } = await import('../shared/startup');
+      const { pingSDK } = await import('@simple-claude-bot/brain-core/ping/pingSDK');
       const result = await pingSDK(audit, sandboxConfig);
       return {
         jsonBody: { result } satisfies PingResponse,
