@@ -1,5 +1,5 @@
+import { parseResponse } from '@simple-claude-bot/brain-core/parseResponse';
 import { describe, expect, it } from 'vitest';
-import { parseResponse } from '../../src/parseResponse';
 
 const RS = '\u241E';
 

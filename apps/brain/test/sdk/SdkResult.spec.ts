@@ -1,6 +1,6 @@
 import type { NonNullableUsage, SDKResultSuccess } from '@anthropic-ai/claude-agent-sdk';
+import { SdkResult } from '@simple-claude-bot/brain-core/sdk/SdkResult';
 import { describe, expect, it } from 'vitest';
-import { SdkResult } from '../../src/sdk/SdkResult';
 
 function createResultMessage(overrides: Partial<SDKResultSuccess> = {}): SDKResultSuccess {
   return {

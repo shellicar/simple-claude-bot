@@ -1,0 +1,34 @@
+services:
+  # brain:
+  #   build:
+  #     context: ..
+  #     dockerfile: apps/brain-azure/Dockerfile
+  #   image: banananet-brain-azure
+  #   ports:
+  #     - "7071:80"
+  #   environment:
+  #     TZ: Australia/Melbourne
+  #     AzureWebJobsStorage: ""
+  #     AzureWebJobsSecretStorageType: files
+  #     SANDBOX_ENABLED: "true"
+  #     SANDBOX_DIR: /sandbox
+  #     CLAUDE_CONFIG_DIR: /home/bot/.claude
+  #   volumes:
+  #     - ../.claude-bot:/home/bot/.claude
+  #     - ../sandbox:/sandbox
+  #     - ../.claude-bot-audit:/audit
+  #     - ./function-secrets:/azure-functions-host/Secrets
+  #   restart: unless-stopped
+
+  ears:
+    build:
+      context: ..
+      dockerfile: apps/ears/Dockerfile
+    image: banananet-ears
+    init: true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    env_file: ears.env
+    environment:
+      TZ: Australia/Melbourne

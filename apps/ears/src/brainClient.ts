@@ -5,7 +5,10 @@ import type { CompactRequestInput, DirectRequestInput, ResetRequestInput, Respon
 const TIMEOUT_MS = 10 * 60 * 1000;
 
 export class BrainClient {
-  public constructor(private readonly baseUrl: string) {}
+  public constructor(
+    private readonly baseUrl: string,
+    private readonly functionKey?: string,
+  ) {}
 
   public async health(): Promise<HealthResponse> {
     return this.get<HealthResponse>('/health');
@@ -56,11 +59,22 @@ export class BrainClient {
     }
   }
 
+  private buildHeaders(extra?: HeadersInit): HeadersInit {
+    const headers: Record<string, string> = {};
+    if (this.functionKey) {
+      headers['x-functions-key'] = this.functionKey;
+    }
+    if (extra) {
+      Object.assign(headers, extra);
+    }
+    return headers;
+  }
+
   private async get<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     logger.debug(`Brain GET ${url}`);
     return this.withWaitingLog(path, async () => {
-      const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const response = await fetch(url, { headers: this.buildHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!response.ok) {
         throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
       }
@@ -74,7 +88,7 @@ export class BrainClient {
     return this.withWaitingLog(path, async () => {
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });

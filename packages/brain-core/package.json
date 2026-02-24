@@ -1,26 +1,28 @@
 {
-  "name": "@simple-claude-bot/shared",
-  "type": "module",
+  "name": "@simple-claude-bot/brain-core",
   "version": "0.0.0",
   "scripts": {
     "build": "tsc --build",
     "type-check": "tsc -p tsconfig.check.json"
   },
+  "type": "module",
   "exports": {
     "./*": {
       "import": "./dist/*.js",
       "types": "./src/*.ts"
     }
   },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.41",
+    "@anthropic-ai/claude-code": "^2.1.41",
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@js-joda/core": "^5.7.0",
+    "@js-joda/timezone": "^2.23.0",
+    "@simple-claude-bot/shared": "workspace:*",
+    "zod": "^4.3.6"
+  },
   "devDependencies": {
     "@tsconfig/node22": "^22.0.5",
     "typescript": "^5.9.3"
-  },
-  "dependencies": {
-    "@js-joda/core": "^5.7.0",
-    "@js-joda/locale_en": "^4.15.3",
-    "@js-joda/timezone": "^2.23.0",
-    "winston": "^3.19.0",
-    "zod": "^4.3.6"
   }
 }

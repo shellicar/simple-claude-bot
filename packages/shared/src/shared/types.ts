@@ -43,3 +43,9 @@ export interface PingResponse {
 export interface SessionResponse {
   readonly sessionId: string | null;
 }
+
+export interface VersionResponse {
+  readonly version: string;
+  readonly shortSha: string;
+  readonly buildDate: string;
+}

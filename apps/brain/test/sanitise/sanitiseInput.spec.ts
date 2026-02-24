@@ -1,5 +1,5 @@
+import { sanitiseSystemReminders } from '@simple-claude-bot/brain-core/sanitiseInput';
 import { describe, expect, it } from 'vitest';
-import { sanitiseSystemReminders } from '../../src/sanitiseInput';
 
 describe('sanitiseSystemReminders', () => {
   it('should encode opening system-reminder tags', () => {

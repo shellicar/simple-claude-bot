@@ -1,11 +1,10 @@
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { SdkError } from './SdkError';
 
-const KNOWN_STATUS_CODES: ReadonlySet<number> = new Set<ContentfulStatusCode>([400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 429, 500, 501, 502, 503, 504]);
+const KNOWN_STATUS_CODES: ReadonlySet<number> = new Set([400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 429, 500, 501, 502, 503, 504]);
 
-function toHttpCode(apiStatusCode: number): ContentfulStatusCode {
+function toHttpCode(apiStatusCode: number): number {
   if (KNOWN_STATUS_CODES.has(apiStatusCode)) {
-    return apiStatusCode as ContentfulStatusCode;
+    return apiStatusCode;
   }
   return 500;
 }
