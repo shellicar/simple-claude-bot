@@ -4,15 +4,14 @@ param appName string
 param location string
 param environmentId string
 param acrLoginServer string
-param imageName string
-param imageTag string
+param defaultImageName string
+param defaultImageTag string
+param image string = '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
 param uamiId string
 @secure()
 param insightsConnectionString string
 @secure()
 param storageConnectionString string
-
-var image = '${acrLoginServer}/${imageName}:${imageTag}'
 
 resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
   name: appName
