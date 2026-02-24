@@ -104,11 +104,11 @@ export function startWorkPlay(config: WorkPlayConfig): void {
   activeConfig = config;
   resetActivity();
   onTick(config).catch((error) => {
-    logger.error(`WorkPlay tick error: ${error}`);
+    logger.error(`WorkPlay tick error: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
   });
   timer = setInterval(() => {
     onTick(config).catch((error) => {
-      logger.error(`WorkPlay tick error: ${error}`);
+      logger.error(`WorkPlay tick error: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
     });
   }, TICK_INTERVAL_MS);
 }

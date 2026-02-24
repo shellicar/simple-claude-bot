@@ -87,7 +87,7 @@ const main = async () => {
           await dispatchReplies(channel, response.replies, batch);
         }
       } catch (error) {
-        logger.error(`Error processing message: ${error}`);
+        logger.error(`Error processing message: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
         await channel.sendMessage('Sorry, I encountered an error processing your message.');
       } finally {
         stopTyping();

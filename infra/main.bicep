@@ -3,19 +3,28 @@ targetScope = 'resourceGroup'
 param location string = 'australiaeast'
 param locationCode string = 'aue'
 param env string = 'dev'
+param imageTag string = 'latest'
 
 var org = 'sgh'
 var project = 'banananet'
 
 var insightsName = '${org}-appi-${locationCode}-${env}-${project}-01'
 var storageName = '${org}sa${locationCode}${env}${project}01'
-var planName = '${org}-plan-${locationCode}-${env}-${project}-01'
-var funcName = '${org}-func-${locationCode}-${env}-${project}-01'
+var appName = '${org}-ca-${locationCode}-${env}-${project}-01'
+var envName = '${org}-cae-${locationCode}-${env}-${project}-01'
+var acrName = '${org}acr${locationCode}01'
+var imageName = '${project}-brain'
 
 var uamiName = '${org}-uami-${locationCode}-${env}-${project}-01'
 var sandboxShareName = 'sandbox'
 var homeShareName = 'home'
 var auditShareName = 'audit'
+
+// AcrPull role definition
+resource acrPullRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' existing = {
+  name: '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+  scope: subscription()
+}
 
 resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: uamiName
@@ -28,6 +37,12 @@ resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
 resource logs 'Microsoft.OperationalInsights/workspaces@2025-07-01' existing = {
   name: 'DefaultWorkspace-383d501b-3906-496b-ac90-e336189d628f-EAU'
   scope: resourceGroup('383d501b-3906-496b-ac90-e336189d628f', 'DefaultResourceGroup-EAU')
+}
+
+// ACR — shared tenant-level, deployed separately via modules/container-registry.bicep
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: acrName
+  scope: resourceGroup('383d501b-3906-496b-ac90-e336189d628f', 'CentralRG')
 }
 
 module insights 'br/public:avm/res/insights/component:0.6.0' = {
@@ -81,25 +96,60 @@ module storage 'br/public:avm/res/storage/storage-account:0.26.2' = {
   }
 }
 
-module functionApp 'modules/function-app.bicep' = {
-  name: '${deployment().name}-func'
+module containerEnv 'modules/container-apps-env.bicep' = {
+  name: '${deployment().name}-env'
   params: {
-    funcName: funcName
-    planName: planName
+    envName: envName
     location: location
+    logAnalyticsCustomerId: logs.properties.customerId
+    logAnalyticsSharedKey: logs.listKeys().primarySharedKey
     storageName: storage.outputs.name
-    insightsConnectionString: insights.outputs.connectionString
-    insightsName: insightsName
-    uamiId: uami.id
-    uamiClientId: uami.properties.clientId
-    uamiPrincipalId: uami.properties.principalId
-    sandboxShareName: sandboxShareName
     homeShareName: homeShareName
+    sandboxShareName: sandboxShareName
     auditShareName: auditShareName
   }
 }
 
-output functionAppName string = functionApp.outputs.name
-output functionAppUrl string = 'https://${functionApp.outputs.defaultHostName}'
+resource storageRef 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+  name: storageName
+}
+
+module containerApp 'modules/container-app.bicep' = {
+  name: '${deployment().name}-app'
+  params: {
+    appName: appName
+    location: location
+    environmentId: containerEnv.outputs.id
+    acrLoginServer: acr.properties.loginServer
+    imageName: imageName
+    imageTag: imageTag
+    uamiId: uami.id
+    insightsConnectionString: insights.outputs.connectionString
+    storageConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageRef.name};AccountKey=${storageRef.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'
+  }
+}
+
+// AcrPull role assignment — UAMI can pull images from shared ACR
+module acrRoleAssignment 'modules/acr-role-assignment.bicep' = {
+  name: '${deployment().name}-acr-role'
+  scope: resourceGroup('383d501b-3906-496b-ac90-e336189d628f', 'CentralRG')
+  params: {
+    acrName: acrName
+    principalId: uami.properties.principalId
+    roleDefinitionId: acrPullRole.id
+  }
+}
+
+module assignment 'modules/assignment.bicep' = {
+  name: '${deployment().name}-assignment'
+  params: {
+    principalIds: [uami.properties.principalId]
+    storageName: storage.outputs.name
+    insightsName: insightsName
+  }
+}
+
+output appName string = containerApp.outputs.name
+output appUrl string = 'https://${containerApp.outputs.fqdn}'
 output storageName string = storage.outputs.name
 output uamiClientId string = uami.properties.clientId

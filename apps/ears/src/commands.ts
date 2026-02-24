@@ -196,12 +196,12 @@ export function dispatchCommand(ctx: CommandContext, line: string): void {
     }
     ctx.setProcessing(
       command.handler(ctx, args).catch((error) => {
-        logger.error(`${name} error: ${error}`);
+        logger.error(`${name} error: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
       }),
     );
   } else {
     command.handler(ctx, args).catch((error) => {
-      logger.error(`${name} error: ${error}`);
+      logger.error(`${name} error: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
     });
   }
 }
