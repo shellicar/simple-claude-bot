@@ -7,5 +7,9 @@ export function buildSandboxEnv(): Record<string, string> {
       env[key] = process.env[key];
     }
   }
+  const botHome = process.env.BOT_HOME;
+  if (botHome) {
+    env.HOME = botHome;
+  }
   return env;
 }

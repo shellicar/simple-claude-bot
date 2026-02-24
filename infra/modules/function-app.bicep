@@ -116,6 +116,22 @@ module func 'br/public:avm/res/web/site:0.21.0' = {
           name: 'TZ'
           value: 'Australia/Melbourne'
         }
+        {
+          name: 'CLAUDE_CONFIG_DIR'
+          value: '/bot/.claude'
+        }
+        {
+          name: 'SANDBOX_ENABLED'
+          value: 'true'
+        }
+        {
+          name: 'SANDBOX_DIR'
+          value: '/sandbox'
+        }
+        {
+          name: 'BOT_HOME'
+          value: '/bot'
+        }
       ]
     }
     basicPublishingCredentialsPolicies: [

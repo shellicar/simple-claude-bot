@@ -12,7 +12,7 @@
     "build": "tsx build.ts",
     "type-check": "tsc -p tsconfig.check.json",
     "start": "func start",
-    "package": "pnpm i --prod --force && zip publish.zip -FSry dist host.json package.json node_modules && pnpm i --force",
+    "package": "pnpm i --prod --force && zip publish.zip -FSr dist host.json package.json node_modules && pnpm i --force",
     "deploy:dev": "az functionapp deployment source config-zip --src publish.zip --resource-group sgh-rg-aue-dev-banananet-01 --name sgh-func-aue-dev-banananet-01 --build-remote false"
   },
   "dependencies": {

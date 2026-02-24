@@ -21,9 +21,9 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: PlatformMessageInput[] = [];
 
-  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env, { reportInput: true });
+  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, BRAIN_KEY, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env, { reportInput: true });
 
-  const brain = new BrainClient(BRAIN_URL);
+  const brain = new BrainClient(BRAIN_URL, BRAIN_KEY);
   const sandboxEnabled = SANDBOX_ENABLED;
   const botAliases = BOT_ALIASES;
 
