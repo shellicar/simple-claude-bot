@@ -1,14 +1,11 @@
-import { createLogger, format, transports } from 'winston';
+import { ApplicationInsightsVersion, createWinstonLogger } from '@shellicar/winston-azure-application-insights';
+import applicationinsights from 'applicationinsights';
 
-export const logger = createLogger({
-  level: 'debug',
-  format: format.combine(
-    format.colorize(),
-    format.timestamp({ format: 'HH:mm:ss.SSS' }),
-    format.printf(({ timestamp, level, message, ...meta }) => {
-      const metaStr = Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
-      return `${timestamp} ${level}: ${message}${metaStr}`;
-    }),
-  ),
-  transports: [new transports.Console({ stderrLevels: ['error'] })],
+applicationinsights.setup().start();
+
+export const logger = createWinstonLogger({
+  insights: {
+    client: applicationinsights.defaultClient,
+    version: ApplicationInsightsVersion.V3,
+  },
 });

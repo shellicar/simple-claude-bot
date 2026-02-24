@@ -4,6 +4,7 @@ param location string = 'australiaeast'
 param locationCode string = 'aue'
 param env string = 'dev'
 param imageTag string = 'latest'
+param firstDeploy bool = false
 
 var org = 'sgh'
 var project = 'banananet'
@@ -115,6 +116,11 @@ resource storageRef 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   dependsOn: [ storage ]
 }
 
+
+resource containerAppRef 'Microsoft.App/containerapps@2025-02-02-preview' existing = if (!firstDeploy) {
+  name: appName
+}
+
 module containerApp 'modules/container-app.bicep' = {
   name: '${deployment().name}-app'
   params: {
@@ -122,8 +128,9 @@ module containerApp 'modules/container-app.bicep' = {
     location: location
     environmentId: containerEnv.outputs.id
     acrLoginServer: acr.properties.loginServer
-    imageName: imageName
-    imageTag: imageTag
+    image: containerAppRef.?properties.template.containers[0].image
+    defaultImageName: imageName
+    defaultImageTag: imageTag
     uamiId: uami.id
     insightsConnectionString: insights.outputs.connectionString
     storageConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${storageRef.name};AccountKey=${storageRef.listKeys().keys[0].value};EndpointSuffix=${environment().suffixes.storage}'

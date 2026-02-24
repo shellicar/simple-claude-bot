@@ -1,6 +1,16 @@
+# Stage 1: Install runtime dependencies (cached separately — these rarely change)
+FROM node:22-slim AS deps
+RUN corepack enable pnpm
+RUN mkdir /tmp/deps
+WORKDIR /tmp/deps
+RUN pnpm init
+COPY apps/brain-azure/package.json /tmp/source.json
+RUN pnpm add $(node -e "for(const[k,v]of Object.entries(require('/tmp/source.json').dependencies))process.stdout.write(k+'@'+v+' ')")
+
+# Stage 2: Main image
 FROM mcr.microsoft.com/azure-functions/node:4-node22
 
-ENV AzureWebJobsScriptRoot=/home/site/wwwroot/apps/brain-azure \
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
     AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
     TZ=Australia/Melbourne \
     SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep, ssh, ssh-keygen"
@@ -31,14 +41,9 @@ RUN useradd -m -s /bin/bash -u 1000 -o bot
 
 WORKDIR /home/site/wwwroot
 
-# Install runtime dependencies (claude-agent-sdk is external in esbuild, claude-code is a subprocess)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY apps/brain-azure/package.json apps/brain-azure/package.json
-COPY packages/brain-core/package.json packages/brain-core/package.json
-COPY packages/shared/package.json packages/shared/package.json
-RUN pnpm install --prod --frozen-lockfile --filter=@simple-claude-bot/brain-azure...
-
-WORKDIR /home/site/wwwroot/apps/brain-azure
+# Copy runtime dependencies from deps stage
+COPY --from=deps /tmp/deps/node_modules node_modules/
+COPY apps/brain-azure/package.json package.json
 
 # Copy built output and Azure Functions config
 COPY apps/brain-azure/dist/ dist/
@@ -53,8 +58,8 @@ COPY scripts/brain-entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Lock down app files and set permissions
 RUN chmod -R 750 /home/site/wwwroot \
-  && chmod o+x /home/site/wwwroot /home/site/wwwroot/apps /home/site/wwwroot/apps/brain-azure \
-  && chmod -R o+rX /home/site/wwwroot/node_modules /home/site/wwwroot/apps/brain-azure/node_modules \
+  && chmod o+x /home/site/wwwroot \
+  && chmod -R o+rX /home/site/wwwroot/node_modules \
   && chmod +x /opt/claude-home/hooks/*.sh \
   && chmod +x /usr/local/bin/claude-sandbox \
   && chmod +x /usr/local/bin/entrypoint.sh

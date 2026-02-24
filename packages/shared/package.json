@@ -20,6 +20,8 @@
     "@js-joda/core": "^5.7.0",
     "@js-joda/locale_en": "^4.15.3",
     "@js-joda/timezone": "^2.23.0",
+    "@shellicar/winston-azure-application-insights": "^6.0.3",
+    "applicationinsights": "^3.13.0",
     "winston": "^3.19.0",
     "zod": "^4.3.6"
   }
