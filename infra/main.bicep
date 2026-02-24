@@ -112,6 +112,7 @@ module containerEnv 'modules/container-apps-env.bicep' = {
 
 resource storageRef 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageName
+  dependsOn: [ storage ]
 }
 
 module containerApp 'modules/container-app.bicep' = {

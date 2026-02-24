@@ -7,6 +7,7 @@ param acrLoginServer string
 param imageName string
 param imageTag string
 param uamiId string
+@secure()
 param insightsConnectionString string
 @secure()
 param storageConnectionString string
@@ -66,8 +67,8 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
           name: 'brain'
           image: image
           resources: {
-            cpu: json('1.0')
-            memory: '2Gi'
+            cpu: json('0.5')
+            memory: '1Gi'
           }
           env: [
             {
@@ -86,9 +87,13 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
               name: 'TZ'
               value: 'Australia/Melbourne'
             }
+            // {
+            //   name: 'AzureWebJobsSecretStorageType'
+            //   value: 'ContainerApps'
+            // }
             {
               name: 'CLAUDE_CONFIG_DIR'
-              value: '/bot/.claude'
+              value: '/home/bot/.claude'
             }
             {
               name: 'SANDBOX_ENABLED'
@@ -98,15 +103,11 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
               name: 'SANDBOX_DIR'
               value: '/sandbox'
             }
-            {
-              name: 'BOT_HOME'
-              value: '/bot'
-            }
           ]
           volumeMounts: [
             {
               volumeName: 'home'
-              mountPath: '/bot'
+              mountPath: '/home/bot'
             }
             {
               volumeName: 'sandbox'
