@@ -8,6 +8,7 @@ import { AuditWriter } from '@simple-claude-bot/brain-core/audit/auditLog';
 import { brainSchema } from '@simple-claude-bot/brain-core/brainSchema';
 import { compactSession } from '@simple-claude-bot/brain-core/compactSession';
 import { directQuery } from '@simple-claude-bot/brain-core/directQuery';
+import { ApiError } from '@simple-claude-bot/brain-core/errors/ApiError';
 import { SdkError } from '@simple-claude-bot/brain-core/errors/SdkError';
 import { getSessionId } from '@simple-claude-bot/brain-core/getSessionId';
 import { initSessionPaths } from '@simple-claude-bot/brain-core/initSessionPaths';
@@ -46,7 +47,8 @@ const main = async () => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorName = error instanceof Error ? error.name : 'Error';
 
-    logger.error(`${route} error: ${errorName}: ${errorMessage}`);
+    const errorCause = error instanceof Error && error.cause ? String(error.cause) : undefined;
+    logger.error(`${route} error: ${errorName}: ${errorMessage}`, ...(errorCause ? [{ cause: errorCause }] : []));
 
     let statusCode: ContentfulStatusCode = 500;
     if (error instanceof ZodError) {
@@ -55,8 +57,17 @@ const main = async () => {
       statusCode = error.httpCode as ContentfulStatusCode;
     }
 
+    const jsonBody: Record<string, unknown> = { ...errorBody, error: errorMessage };
+    if (error instanceof ApiError) {
+      jsonBody.upstreamStatus = error.apiStatusCode;
+      jsonBody.upstreamErrorType = error.errorType;
+    }
+    if (errorCause) {
+      jsonBody.cause = errorCause;
+    }
+
     logger.info('Http Response', { status: statusCode, error: errorName });
-    return c.json({ ...errorBody, error: errorMessage }, statusCode);
+    return c.json(jsonBody, statusCode);
   }
 
   const app = new Hono();

@@ -76,7 +76,8 @@ export class BrainClient {
     return this.withWaitingLog(path, async () => {
       const response = await fetch(url, { headers: this.buildHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
       if (!response.ok) {
-        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
+        const body = await response.text().catch(() => '');
+        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
       return response.json() as Promise<T>;
     });
@@ -93,7 +94,8 @@ export class BrainClient {
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!response.ok) {
-        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}`);
+        const body = await response.text().catch(() => '');
+        throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
       return response.json() as Promise<TRes>;
     });

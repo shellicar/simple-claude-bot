@@ -29,4 +29,4 @@ export const sdkHooks: Partial<Record<HookEvent, HookCallbackMatcher[]>> = {
 const resolvedCliPath = fileURLToPath(import.meta.resolve('@anthropic-ai/claude-code/cli.js'));
 export const claudePath = process.env.CLAUDE_PATH ?? resolvedCliPath;
 
-export const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'BANANABOT_BUILD_TIME', 'BANANABOT_BUILD_HASH']);
+export const ENV_PASSTHROUGH = new Set(['HOME', 'PATH', 'SHELL', 'USER', 'HOSTNAME', 'TZ', 'TERM', 'LANG', 'NODE_VERSION', 'BANANABOT_BUILD_TIME', 'BANANABOT_BUILD_HASH', 'CLAUDE_CODE_OAUTH_TOKEN']);

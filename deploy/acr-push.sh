@@ -2,7 +2,7 @@
 # Build and push brain-azure image to Azure Container Registry
 #
 # Usage:
-#   ./banananetv2/acr-push.sh [--tag <TAG>] [--build-only] [--no-deploy]
+#   ./deploy/acr-push.sh [--tag <TAG>] [--build-only] [--no-deploy]
 #
 # Options:
 #   --tag         Image tag (default: short image SHA)
@@ -34,7 +34,7 @@ while [ $# -gt 0 ]; do
       shift
       ;;
     -h|--help)
-      echo "Usage: ./banananetv2/acr-push.sh [--tag <TAG>] [--build-only] [--no-deploy]"
+      echo "Usage: ./deploy/acr-push.sh [--tag <TAG>] [--build-only] [--no-deploy]"
       exit 0
       ;;
     *)
@@ -52,13 +52,9 @@ if [ -z "$TAG" ]; then
 fi
 
 SHA_IMAGE="${ACR}/${IMAGE_NAME}:${TAG}"
-LATEST_IMAGE="${ACR}/${IMAGE_NAME}:latest"
 
 echo "🏷️  Tagging as ${SHA_IMAGE}"
 docker tag "${IMAGE_NAME}:build" "${SHA_IMAGE}"
-
-echo "🏷️  Tagging as ${LATEST_IMAGE}"
-docker tag "${IMAGE_NAME}:build" "${LATEST_IMAGE}"
 
 if [ "$BUILD_ONLY" = 1 ]; then
   echo "✅ Build complete (--build-only, skipping push)"
@@ -71,8 +67,12 @@ az acr login --name sghacraue01
 echo "📤 Pushing ${SHA_IMAGE}..."
 docker push "${SHA_IMAGE}"
 
-echo "📤 Pushing ${LATEST_IMAGE}..."
-docker push "${LATEST_IMAGE}"
+echo "🏷️  Tagging latest → ${TAG} (server-side)..."
+az acr import \
+  --name sghacraue01 \
+  --source "${ACR}/${IMAGE_NAME}:${TAG}" \
+  --image "${IMAGE_NAME}:latest" \
+  --force
 
 echo "✅ Push complete: ${SHA_IMAGE} + latest"
 
@@ -80,10 +80,15 @@ if [ "$NO_DEPLOY" = 1 ]; then
   exit 0
 fi
 
+BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
 echo "🚀 Updating Container App..."
 az containerapp update \
   -n "${CONTAINER_APP}" \
   -g "${RESOURCE_GROUP}" \
-  --image "${SHA_IMAGE}"
+  --image "${SHA_IMAGE}" \
+  --set-env-vars \
+    "BANANABOT_BUILD_HASH=${TAG}" \
+    "BANANABOT_BUILD_TIME=${BUILD_TIME}"
 
-echo "✅ Deploy complete: ${CONTAINER_APP} → ${SHA_IMAGE}"
+echo "✅ Deploy complete: ${CONTAINER_APP} → ${SHA_IMAGE} (hash=${TAG}, time=${BUILD_TIME})"

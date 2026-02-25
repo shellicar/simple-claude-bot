@@ -2,7 +2,7 @@
 # Create an ACR purge task to clean up old image tags
 #
 # Usage:
-#   ./banananetv2/acr-purge-setup.sh
+#   ./deploy/acr-purge-setup.sh
 #
 # Creates a daily scheduled task that:
 #   - Deletes tags older than 7 days
