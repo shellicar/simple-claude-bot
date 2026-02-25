@@ -47,7 +47,8 @@ const main = async () => {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorName = error instanceof Error ? error.name : 'Error';
 
-    logger.error(`${route} error: ${errorName}: ${errorMessage}`);
+    const errorCause = error instanceof Error && error.cause ? String(error.cause) : undefined;
+    logger.error(`${route} error: ${errorName}: ${errorMessage}`, ...(errorCause ? [{ cause: errorCause }] : []));
 
     let statusCode: ContentfulStatusCode = 500;
     if (error instanceof ZodError) {
@@ -60,6 +61,9 @@ const main = async () => {
     if (error instanceof ApiError) {
       jsonBody.upstreamStatus = error.apiStatusCode;
       jsonBody.upstreamErrorType = error.errorType;
+    }
+    if (errorCause) {
+      jsonBody.cause = errorCause;
     }
 
     logger.info('Http Response', { status: statusCode, error: errorName });

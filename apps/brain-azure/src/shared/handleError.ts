@@ -8,7 +8,8 @@ export function handleError(route: string, error: unknown, errorBody: Record<str
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorName = error instanceof Error ? error.name : 'Error';
 
-  logger.error(`${route} error: ${errorName}: ${errorMessage}`);
+  const errorCause = error instanceof Error && error.cause ? String(error.cause) : undefined;
+  logger.error(`${route} error: ${errorName}: ${errorMessage}`, ...(errorCause ? [{ cause: errorCause }] : []));
 
   let statusCode = 500;
   if (error instanceof ZodError) {
@@ -21,6 +22,9 @@ export function handleError(route: string, error: unknown, errorBody: Record<str
   if (error instanceof ApiError) {
     jsonBody.upstreamStatus = error.apiStatusCode;
     jsonBody.upstreamErrorType = error.errorType;
+  }
+  if (errorCause) {
+    jsonBody.cause = errorCause;
   }
 
   logger.info('Http Response', { status: statusCode, error: errorName });
