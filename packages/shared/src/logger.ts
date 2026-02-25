@@ -8,4 +8,9 @@ export const logger = createWinstonLogger({
     client: applicationinsights.defaultClient,
     version: ApplicationInsightsVersion.V3,
   },
+  winston: {
+    console: {
+      enabled: process.env.CONTAINER_APP_NAME === undefined,
+    },
+  },
 });

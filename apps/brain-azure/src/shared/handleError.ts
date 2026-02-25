@@ -1,4 +1,5 @@
 import type { HttpRequest, HttpResponseInit } from '@azure/functions';
+import { ApiError } from '@simple-claude-bot/brain-core/errors/ApiError';
 import { SdkError } from '@simple-claude-bot/brain-core/errors/SdkError';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { ZodError } from 'zod';
@@ -16,10 +17,16 @@ export function handleError(route: string, error: unknown, errorBody: Record<str
     statusCode = error.httpCode;
   }
 
+  const jsonBody: Record<string, unknown> = { ...errorBody, error: errorMessage };
+  if (error instanceof ApiError) {
+    jsonBody.upstreamStatus = error.apiStatusCode;
+    jsonBody.upstreamErrorType = error.errorType;
+  }
+
   logger.info('Http Response', { status: statusCode, error: errorName });
   return {
     status: statusCode,
-    jsonBody: { ...errorBody, error: errorMessage },
+    jsonBody,
   };
 }
 
