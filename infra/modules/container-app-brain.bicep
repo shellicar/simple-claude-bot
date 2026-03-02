@@ -6,12 +6,18 @@ param environmentId string
 param acrLoginServer string
 param defaultImageName string
 param defaultImageTag string
-param image string = '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
+param image string?
 param uamiId string
 @secure()
 param insightsConnectionString string
 @secure()
 param storageConnectionString string
+@secure()
+param claudeCodeOauthToken string
+param existingBuildHash string?
+param existingBuildTime string?
+
+var resolvedImage = image ?? '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
 
 resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
   name: appName
@@ -58,13 +64,17 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
           name: 'appinsightsconnectionstring'
           value: insightsConnectionString
         }
+        {
+          name: 'claudecodeoauthtoken'
+          value: claudeCodeOauthToken
+        }
       ]
     }
     template: {
       containers: [
         {
           name: 'brain'
-          image: image
+          image: resolvedImage
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
@@ -79,6 +89,10 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
               secretRef: 'appinsightsconnectionstring'
             }
             {
+              name: 'CLAUDE_CODE_OAUTH_TOKEN'
+              secretRef: 'claudecodeoauthtoken'
+            }
+            {
               name: 'FUNCTIONS_WORKER_RUNTIME'
               value: 'node'
             }
@@ -86,10 +100,6 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
               name: 'TZ'
               value: 'Australia/Melbourne'
             }
-            // {
-            //   name: 'AzureWebJobsSecretStorageType'
-            //   value: 'ContainerApps'
-            // }
             {
               name: 'CLAUDE_CONFIG_DIR'
               value: '/home/bot/.claude'
@@ -101,6 +111,14 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
             {
               name: 'SANDBOX_DIR'
               value: '/sandbox'
+            }
+            {
+              name: 'BANANABOT_BUILD_HASH'
+              value: existingBuildHash ?? ''
+            }
+            {
+              name: 'BANANABOT_BUILD_TIME'
+              value: existingBuildTime ?? ''
             }
           ]
           volumeMounts: [
@@ -148,4 +166,3 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
 
 output name string = app.name
 output fqdn string = app.properties.configuration.ingress.fqdn
-output principalId string = app.identity.userAssignedIdentities[uamiId].principalId
