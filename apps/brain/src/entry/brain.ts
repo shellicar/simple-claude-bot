@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { resolve } from 'node:path';
@@ -21,7 +20,7 @@ import type { SandboxConfig } from '@simple-claude-bot/brain-core/types';
 import { sendUnprompted } from '@simple-claude-bot/brain-core/unsolicited/sendUnprompted';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
-import type { AcceptedResponse, CallbackPayload, CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CallbackPayload, CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { type z, ZodError } from 'zod';
@@ -89,33 +88,32 @@ const main = async () => {
 
   async function processAndCallback(
     body: z.output<typeof RespondRequestSchema>,
-    correlationId: string,
   ): Promise<void> {
     const callbackUrl = body.callbackUrl!;
 
     // Send initial typing heartbeat immediately
-    await postCallback(callbackUrl, { correlationId, type: 'typing' });
+    await postCallback(callbackUrl, { type: 'typing' });
 
     // Start periodic typing heartbeat
     const typingInterval = setInterval(() => {
-      postCallback(callbackUrl, { correlationId, type: 'typing' });
+      postCallback(callbackUrl, { type: 'typing' });
     }, 8000);
 
     try {
       const replies = await respondToMessages(audit, body, sandboxConfig);
 
       await postCallback(callbackUrl, {
-        correlationId,
         type: 'message',
         replies,
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Background processing failed for ${correlationId}: ${errorMessage}`);
+      logger.error(`Background processing failed: ${errorMessage}`);
+
+      // Send error as a message — Brain owns error formatting
       await postCallback(callbackUrl, {
-        correlationId,
-        type: 'error',
-        error: errorMessage,
+        type: 'message',
+        replies: [{ message: `⚠️ Something went wrong: ${errorMessage}` }],
       });
     } finally {
       clearInterval(typingInterval);
@@ -158,13 +156,11 @@ const main = async () => {
 
       if (body.callbackUrl) {
         // Async mode: return 202 immediately, process in background
-        const correlationId = randomUUID();
-
-        processAndCallback(body, correlationId).catch((error) => {
-          logger.error(`Unhandled error in background processing for ${correlationId}: ${error}`);
+        processAndCallback(body).catch((error) => {
+          logger.error(`Unhandled error in background processing: ${error}`);
         });
 
-        return c.json({ correlationId } satisfies AcceptedResponse, 202);
+        return c.body(null, 202);
       }
 
       // Sync mode: existing behavior (backward compatible)

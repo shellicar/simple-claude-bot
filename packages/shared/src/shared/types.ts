@@ -52,28 +52,16 @@ export interface VersionResponse {
 
 // --- Async Callback Types ---
 
-export interface AcceptedResponse {
-  readonly correlationId: string;
-}
-
 export interface CallbackTyping {
-  readonly correlationId: string;
   readonly type: 'typing';
 }
 
 export interface CallbackMessage {
-  readonly correlationId: string;
   readonly type: 'message';
   readonly replies: ParsedReply[];
 }
 
-export interface CallbackError {
-  readonly correlationId: string;
-  readonly type: 'error';
-  readonly error: string;
-}
-
-export type CallbackPayload = CallbackTyping | CallbackMessage | CallbackError;
+export type CallbackPayload = CallbackTyping | CallbackMessage;
 
 export interface CallbackDeliveredMessage {
   readonly index: number;
