@@ -16,12 +16,14 @@ export const PlatformMessageSchema = z.object({
   content: z.string(),
   createdTimestamp: z.number(),
   attachments: z.array(PlatformAttachmentSchema),
+  messageId: z.string().optional(),
 });
 
 export const RespondRequestSchema = z.object({
   messages: z.array(PlatformMessageSchema),
   systemPrompt: z.string(),
   allowedTools: z.array(z.string()),
+  callbackUrl: z.string().url().optional(),
 });
 
 export const UnpromptedRequestSchema = z.object({

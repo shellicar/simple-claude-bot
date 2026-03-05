@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { resolve } from 'node:path';
@@ -20,10 +21,10 @@ import type { SandboxConfig } from '@simple-claude-bot/brain-core/types';
 import { sendUnprompted } from '@simple-claude-bot/brain-core/unsolicited/sendUnprompted';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
-import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { AcceptedResponse, CallbackPayload, CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { ZodError } from 'zod';
+import { type z, ZodError } from 'zod';
 
 const main = async () => {
   const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
@@ -70,6 +71,57 @@ const main = async () => {
     return c.json(jsonBody, statusCode);
   }
 
+  async function postCallback(url: string, payload: CallbackPayload): Promise<void> {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        logger.warn(`Callback to ${url} failed with status ${response.status}`);
+      }
+    } catch (error) {
+      logger.warn(`Callback to ${url} failed: ${error}`);
+    }
+  }
+
+  async function processAndCallback(
+    body: z.output<typeof RespondRequestSchema>,
+    correlationId: string,
+  ): Promise<void> {
+    const callbackUrl = body.callbackUrl!;
+
+    // Send initial typing heartbeat immediately
+    await postCallback(callbackUrl, { correlationId, type: 'typing' });
+
+    // Start periodic typing heartbeat
+    const typingInterval = setInterval(() => {
+      postCallback(callbackUrl, { correlationId, type: 'typing' });
+    }, 8000);
+
+    try {
+      const replies = await respondToMessages(audit, body, sandboxConfig);
+
+      await postCallback(callbackUrl, {
+        correlationId,
+        type: 'message',
+        replies,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Background processing failed for ${correlationId}: ${errorMessage}`);
+      await postCallback(callbackUrl, {
+        correlationId,
+        type: 'error',
+        error: errorMessage,
+      });
+    } finally {
+      clearInterval(typingInterval);
+    }
+  }
+
   const app = new Hono();
 
   app.get('/health', (c) => {
@@ -103,6 +155,19 @@ const main = async () => {
   app.post('/respond', async (c) => {
     try {
       const body = RespondRequestSchema.parse(await c.req.json());
+
+      if (body.callbackUrl) {
+        // Async mode: return 202 immediately, process in background
+        const correlationId = randomUUID();
+
+        processAndCallback(body, correlationId).catch((error) => {
+          logger.error(`Unhandled error in background processing for ${correlationId}: ${error}`);
+        });
+
+        return c.json({ correlationId } satisfies AcceptedResponse, 202);
+      }
+
+      // Sync mode: existing behavior (backward compatible)
       const replies = await respondToMessages(audit, body, sandboxConfig);
       return c.json({ replies } satisfies RespondResponse);
     } catch (error) {
