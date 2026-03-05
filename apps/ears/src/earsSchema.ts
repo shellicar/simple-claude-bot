@@ -20,4 +20,6 @@ export const earsSchema = z.object({
     .transform((val) => val === 'true')
     .default(false),
   SANDBOX_COMMANDS: z.string().default(''),
+  CALLBACK_PORT: z.coerce.number().int().default(3001),
+  CALLBACK_HOST: z.string().optional(),
 });

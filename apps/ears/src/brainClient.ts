@@ -22,6 +22,25 @@ export class BrainClient {
     return this.post<RespondRequestInput, RespondResponse>('/respond', request);
   }
 
+  /**
+   * Send a respond request with a callback URL. Brain returns 202 immediately.
+   * Results will arrive via HTTP callbacks to the provided URL.
+   */
+  public async respondAsync(request: RespondRequestInput & { callbackUrl: string }): Promise<void> {
+    const url = `${this.baseUrl}/respond`;
+    logger.debug(`Brain POST ${url} (async, callback: ${request.callbackUrl})`);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(30_000), // Only need to wait for the 202
+    });
+    if (response.status !== 202) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Brain /respond async failed: ${response.status} ${response.statusText}: ${body}`);
+    }
+  }
+
   public async unprompted(request: UnpromptedRequestInput): Promise<UnpromptedResponse> {
     return this.post<UnpromptedRequestInput, UnpromptedResponse>('/unprompted', request);
   }

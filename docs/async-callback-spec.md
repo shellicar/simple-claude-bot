@@ -2,7 +2,7 @@
 
 ## Overview
 
-Replace the synchronous HTTP request/response pattern between Ears and Brain with an async callback model. Brain returns immediately and sends results back via HTTP callbacks to Ears.
+Replace the synchronous HTTP request/response pattern between Ears and Brain with an async callback model. Brain returns 202 immediately and sends results back via HTTP callbacks to a request-scoped URL provided by Ears.
 
 ## Current Flow (Synchronous)
 
@@ -29,88 +29,108 @@ Ears                          Brain
 Ears                          Brain
  |                              |
  |-- POST /respond ----------->|
- |<-------- 202 + {id} --------|  (immediate)
+ |   (with callbackUrl)        |
+ |<-------- 202 ---------------|  (immediate, empty body)
  |                              |
  |                              |-- starts processing
  |                              |
- |<-- POST /callback {typing} -|  (heartbeat)
- |   (fire typing indicator)    |
+ |<-- POST callbackUrl         |  (typing heartbeat)
+ |   { type: "typing" }        |
+ |   (fire typing indicator)   |
  |                              |
- |<-- POST /callback {typing} -|  (heartbeat, ~8s later)
- |   (fire typing indicator)    |
+ |<-- POST callbackUrl         |  (typing heartbeat, ~8s later)
+ |   { type: "typing" }        |
  |                              |
- |<-- POST /callback {message} |  (done)
- |   (deliver to Discord)       |
- |                              |
+ |<-- POST callbackUrl         |  (done — delivers replies)
+ |   { type: "message", ... }  |
+ |   (deliver to Discord)      |
+ |   responds with message IDs |
 ```
 
-## Brain Changes (BananaBot's domain)
+## Key Design Decisions
 
-### 1. Accept callback URL in request
+### Callback URL is the correlation
 
-Add `callbackUrl` to `RespondRequestSchema`:
+The callback URL is **unique per request** — Ears generates it (e.g. `/callback/:uuid`) and passes it in the request body. Brain just POSTs to whatever URL it was given. No correlation ID in the payloads. The URL *is* the correlation.
+
+### No error callback type
+
+Brain owns error formatting. If processing fails, Brain decides whether and what to post. The default behavior is to send a `message` callback with a user-friendly error reply, but Brain is free to silently swallow errors or handle them however it sees fit. Think of it like an answering machine message — you set it up beforehand, not in the moment.
+
+### Typing is a heartbeat
+
+Discord typing is a heartbeat, not start/stop. Brain just beats (`{ type: "typing" }`) at regular intervals. The typing indicator naturally expires after ~10s if not refreshed. Brain sends the first beat immediately on accepting the request, then every 8 seconds until processing completes.
+
+### Backward compatible
+
+If `callbackUrl` is omitted from the request, Brain falls back to the existing synchronous behavior (awaits processing, returns 200 with replies). Both paths coexist.
+
+## Brain Changes (Implemented ✅)
+
+### Request schema
+
+`callbackUrl` added as optional to `RespondRequestSchema`:
 
 ```typescript
 export const RespondRequestSchema = z.object({
   messages: z.array(PlatformMessageSchema),
   systemPrompt: z.string(),
   allowedTools: z.array(z.string()),
-  callbackUrl: z.string().url(),
+  callbackUrl: z.string().url().optional(),
 });
 ```
 
-### 2. Return 202 Accepted immediately
+`messageId` added as optional to `PlatformMessageSchema` for future use:
+
+```typescript
+export const PlatformMessageSchema = z.object({
+  // ... existing fields ...
+  messageId: z.string().optional(),
+});
+```
+
+### /respond endpoint
 
 ```typescript
 app.post('/respond', async (c) => {
   const body = RespondRequestSchema.parse(await c.req.json());
-  const correlationId = crypto.randomUUID();
 
-  // Fire and forget — process in background
-  processAndCallback(audit, body, sandboxConfig, correlationId).catch((error) => {
-    logger.error(`Background processing failed: ${error}`);
-  });
+  if (body.callbackUrl) {
+    // Async: return 202 immediately, process in background
+    processAndCallback(body).catch((error) => {
+      logger.error(`Unhandled error in background processing: ${error}`);
+    });
+    return c.body(null, 202);
+  }
 
-  return c.json({ correlationId }, 202);
+  // Sync: existing behavior
+  const replies = await respondToMessages(audit, body, sandboxConfig);
+  return c.json({ replies } satisfies RespondResponse);
 });
 ```
 
-### 3. Background processing with callbacks
+### Background processing
 
 ```typescript
-async function processAndCallback(
-  audit: AuditWriter,
-  body: RespondRequestOutput,
-  sandboxConfig: SandboxConfig,
-  correlationId: string,
-): Promise<void> {
-  const callbackUrl = body.callbackUrl;
+async function processAndCallback(body): Promise<void> {
+  const callbackUrl = body.callbackUrl!;
 
-  // Start typing heartbeat
+  // Beat immediately
+  await postCallback(callbackUrl, { type: 'typing' });
+
+  // Keep beating every 8s
   const typingInterval = setInterval(() => {
-    postCallback(callbackUrl, {
-      correlationId,
-      type: 'typing',
-    }).catch((err) => logger.warn(`Typing callback failed: ${err}`));
+    postCallback(callbackUrl, { type: 'typing' });
   }, 8000);
-
-  // Send initial typing immediately
-  await postCallback(callbackUrl, { correlationId, type: 'typing' });
 
   try {
     const replies = await respondToMessages(audit, body, sandboxConfig);
-
-    await postCallback(callbackUrl, {
-      correlationId,
-      type: 'message',
-      replies,
-    });
+    await postCallback(callbackUrl, { type: 'message', replies });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // Brain owns the error message
     await postCallback(callbackUrl, {
-      correlationId,
-      type: 'error',
-      error: errorMessage,
+      type: 'message',
+      replies: [{ message: `⚠️ Something went wrong: ${errorMessage}` }],
     });
   } finally {
     clearInterval(typingInterval);
@@ -118,7 +138,9 @@ async function processAndCallback(
 }
 ```
 
-### 4. Callback POST helper
+### Callback POST helper
+
+5-second timeout, fire-and-forget with warning on failure:
 
 ```typescript
 async function postCallback(url: string, payload: CallbackPayload): Promise<void> {
@@ -126,52 +148,68 @@ async function postCallback(url: string, payload: CallbackPayload): Promise<void
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(5000), // 5s timeout for callbacks
+    signal: AbortSignal.timeout(5000),
   });
   if (!response.ok) {
-    logger.warn(`Callback to ${url} failed: ${response.status}`);
+    logger.warn(`Callback to ${url} failed with status ${response.status}`);
   }
 }
 ```
 
-## Ears Changes (Hellcar's domain — PROPOSAL)
+Both `brain` (Hono) and `brain-azure` (Azure Functions) are updated.
 
-### 1. Add callback endpoint
+## Callback Payload Types (Shared)
 
-Ears needs an HTTP server (it currently only has the Discord WebSocket client). Options:
-- Add Hono/Express alongside the Discord client
-- Or use Node's built-in `http.createServer`
+```typescript
+interface CallbackTyping {
+  type: 'typing';
+}
+
+interface CallbackMessage {
+  type: 'message';
+  replies: ParsedReply[];
+}
+
+type CallbackPayload = CallbackTyping | CallbackMessage;
+```
+
+Two types. That's it.
+
+## Ears Changes (Proposal)
+
+### 1. Add HTTP server for callbacks
+
+Ears currently only has the Discord WebSocket client. It needs an HTTP server to receive callbacks. Options:
+- Hono (already a dependency in the monorepo)
+- Node's built-in `http.createServer`
+
+### 2. Callback endpoint
 
 ```
-POST /callback
+POST /callback/:requestId
 Content-Type: application/json
 
-{
-  "correlationId": "uuid",
-  "type": "typing" | "message" | "error",
-  "replies?": ParsedReply[],
-  "error?": string
-}
+{ "type": "typing" }
+  or
+{ "type": "message", "replies": ParsedReply[] }
 ```
 
-### 2. Handle callback types
+The `:requestId` is generated by Ears when it sends the request to Brain. It maps to the Discord channel context needed to deliver the response.
+
+### 3. Handle callback types
 
 ```typescript
 // type: "typing"
-// → channel.sendTyping() — just beat, no state tracking
+// → channel.sendTyping()
 
 // type: "message"
-// → dispatchReplies(channel, payload.replies, trackedMessages)
+// → dispatchReplies(channel, payload.replies)
 // → respond with delivered message IDs
-
-// type: "error"
-// → channel.sendMessage('Sorry, I encountered an error...')
-// → log the error
 ```
 
-### 3. Message ID in callback response
+### 4. Message ID in callback response
 
-When Ears delivers messages to Discord, it gets message IDs back from the Discord API. The callback response should return these:
+When Ears delivers messages to Discord, it gets message IDs back. Return these in the HTTP response to the `message` callback:
 
 ```typescript
 // Response to type: "message" callback
@@ -181,83 +219,72 @@ When Ears delivers messages to Discord, it gets message IDs back from the Discor
     { "index": 1, "messageId": "1234567891" }
   ]
 }
+
+// Response to type: "typing" callback
+// 200 OK (empty or minimal)
 ```
 
-This gives Brain the Discord message IDs for future use (reactions, edits, etc).
+Type: `CallbackMessageResponse` (defined in shared types).
 
-### 4. Update BrainClient.respond()
-
-Change from waiting for the full response to:
-- POST to Brain, receive 202
-- Wait for callback on the HTTP server
-- Return the result
-
-Or simpler: the callback handler directly dispatches to Discord, and `BrainClient.respond()` is no longer needed for the `/respond` flow.
-
-### 5. Pass callback URL to Brain
-
-Ears needs to know its own callback URL and pass it in the request:
+### 5. Pass callback URL in request
 
 ```typescript
-const response = await brain.respond({
+const requestId = randomUUID();
+await brain.respond({
   messages: batch,
   systemPrompt,
-  allowedTools: ['WebSearch', 'WebFetch'],
-  callbackUrl: `http://${EARS_HOST}:${EARS_PORT}/callback`,
+  allowedTools,
+  callbackUrl: `http://${EARS_CALLBACK_HOST}:${EARS_CALLBACK_PORT}/callback/${requestId}`,
 });
+// Returns 202 — Ears is now free, callbacks will arrive on the HTTP server
 ```
 
-Within the same Container App Environment, this would be the internal hostname.
+### 6. Request context tracking
 
-## Callback Payload Types (Shared)
+Ears needs to map `requestId` → channel context so the callback handler knows where to deliver:
 
 ```typescript
-interface CallbackTyping {
-  correlationId: string;
-  type: 'typing';
-}
+// When sending request to Brain
+pendingRequests.set(requestId, { channel, startedAt: Date.now() });
 
-interface CallbackMessage {
-  correlationId: string;
-  type: 'message';
-  replies: ParsedReply[];
-}
+// In callback handler
+const context = pendingRequests.get(requestId);
+// ... use context.channel to deliver ...
+// On "message" callback: pendingRequests.delete(requestId);
+```
 
-interface CallbackError {
-  correlationId: string;
-  type: 'error';
-  error: string;
-}
+### 7. Timeout safety net
 
-type CallbackPayload = CallbackTyping | CallbackMessage | CallbackError;
+If Brain dies completely (process crash, network failure), it will never call back. Ears needs a timeout to clean up:
 
-interface CallbackMessageResponse {
-  delivered: Array<{
-    index: number;
-    messageId: string;
-  }>;
+```typescript
+// Periodic sweep (e.g. every 60s)
+for (const [id, ctx] of pendingRequests) {
+  if (Date.now() - ctx.startedAt > MAX_WAIT_MS) {
+    pendingRequests.delete(id);
+    // Optionally notify channel
+  }
 }
 ```
 
 ## Migration Strategy
 
-### Phase 1: Add callback support alongside existing sync
-- Brain accepts both: if `callbackUrl` present → async, otherwise → existing sync
-- No breaking changes, both paths work
-- Ears can migrate incrementally
+### Phase 1: Brain-side (done ✅)
+- Brain accepts both: `callbackUrl` present → async 202, absent → existing sync 200
+- No breaking changes, Ears continues working as-is
 
-### Phase 2: Ears adds HTTP server and callback handler
+### Phase 2: Ears adds callback support
 - New HTTP server alongside Discord WebSocket
-- `/callback` endpoint handles Brain's callbacks
-- `/respond` call changes to fire-and-forget
+- `/callback/:requestId` endpoint handles Brain's callbacks
+- `BrainClient.respond()` sends `callbackUrl`, receives 202, returns immediately
+- Callback handler dispatches directly to Discord
 
 ### Phase 3: Remove sync path
 - Once callback is proven, remove the synchronous wait from Brain's `/respond`
 - Remove the 10-minute timeout from both sides
-- Brain's HTTP server timeout can drop to something reasonable (30s for accepting requests)
+- Brain's HTTP server timeout can drop to something reasonable (30s)
 
 ## Open Questions
 
-1. **Ears HTTP port**: What port should Ears listen on? Needs to be accessible from Brain within the CAE.
-2. **Auth on callback**: Should Brain authenticate to Ears' callback endpoint? Within the same CAE the network is private, but belt-and-suspenders.
-3. **Ordering**: If Brain sends `typing` and `message` callbacks very close together, can they arrive out of order? Probably not over localhost, but the correlation ID helps if they do.
+1. **Ears HTTP port**: What port should Ears listen on for callbacks? Needs to be accessible from Brain.
+2. **Auth on callback**: Should Brain authenticate to Ears' callback endpoint? Within a private network this may be unnecessary, but belt-and-suspenders.

@@ -4,6 +4,7 @@ import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
 import { BrainClient } from '../brainClient';
+import { CallbackServer } from '../callbackServer';
 import type { CommandContext } from '../commands';
 import { dispatchCommand } from '../commands';
 import { earsSchema } from '../earsSchema';
@@ -21,7 +22,7 @@ const main = async () => {
   let processing: Promise<void> | undefined;
   const messageQueue: PlatformMessageInput[] = [];
 
-  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, BRAIN_KEY, SANDBOX_ENABLED, SANDBOX_COMMANDS } = earsSchema.parse(process.env, { reportInput: true });
+  const { DISCORD_TOKEN, DISCORD_GUILD, CLAUDE_CHANNEL, BOT_ALIASES, BRAIN_URL, BRAIN_KEY, SANDBOX_ENABLED, SANDBOX_COMMANDS, CALLBACK_PORT, CALLBACK_HOST } = earsSchema.parse(process.env, { reportInput: true });
 
   const brain = new BrainClient(BRAIN_URL, BRAIN_KEY);
   const sandboxEnabled = SANDBOX_ENABLED;
@@ -54,18 +55,13 @@ const main = async () => {
     }
   }
 
-  function startTyping(channel: PlatformChannel): () => void {
-    logger.debug('Typing: started');
-    channel.sendTyping();
-    const timer = setInterval(() => {
-      logger.debug('Typing: refresh');
-      channel.sendTyping();
-    }, 5000);
-    return () => {
-      clearInterval(timer);
-      logger.debug('Typing: stopped');
-    };
-  }
+  // Callback server — receives typing heartbeats and message deliveries from Brain
+  const callbackServer = new CallbackServer({
+    port: CALLBACK_PORT,
+    host: CALLBACK_HOST,
+    dispatchReplies,
+  });
+  callbackServer.start();
 
   const processQueue = async (channel: PlatformChannel) => {
     while (messageQueue.length > 0) {
@@ -74,26 +70,15 @@ const main = async () => {
         channel.trackMessage(m);
       }
 
-      const stopTyping = startTyping(channel);
       try {
-        const response = await brain.respond({ messages: batch, systemPrompt, allowedTools: ['WebSearch', 'WebFetch'] });
-
-        if (response.error) {
-          logger.error(`Brain respond error: ${response.error}`);
-          await channel.sendMessage('Sorry, I encountered an error processing your message.');
-        } else if (response.replies.length === 0) {
-          logger.debug('No replies to send');
-        } else {
-          await dispatchReplies(channel, response.replies, batch);
-        }
+        const callbackUrl = callbackServer.createCallbackUrl(channel, batch);
+        await brain.respondAsync({ messages: batch, systemPrompt, allowedTools: ['WebSearch', 'WebFetch'], callbackUrl });
+        // Brain accepted (202) — callbacks will handle typing + delivery
       } catch (error) {
-        logger.error(`Error processing message: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
+        logger.error(`Error sending to brain: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
         await channel.sendMessage('Sorry, I encountered an error processing your message.');
-      } finally {
-        stopTyping();
+        channel.clearTracked();
       }
-
-      channel.clearTracked();
     }
   };
 
@@ -139,6 +124,7 @@ const main = async () => {
   const shutdown = async (signal: string) => {
     logger.info(`Received ${signal}, shutting down...`);
     stopWorkPlay();
+    callbackServer.stop();
     handle.destroy();
     logger.info('Shutdown complete.');
     process.exit(0);
