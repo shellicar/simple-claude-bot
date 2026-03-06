@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { logger } from '@simple-claude-bot/shared/logger';
 import type { RespondRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type z from 'zod';
@@ -24,7 +25,7 @@ export async function processAndCallback(body: z.output<typeof RespondRequestSch
 
     await postCallback(callbackUrl, {
       type: 'message',
-      replies: [{ message: `⚠️ Something went wrong: ${errorMessage}` }],
+      replies: [{ correlationId: randomUUID(), message: `⚠️ Something went wrong: ${errorMessage}` }],
     });
   } finally {
     clearInterval(typingInterval);

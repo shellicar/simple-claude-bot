@@ -1,6 +1,7 @@
 const DISCORD_MAX_LENGTH = 2000;
 const MIN_BREAK_POINT = 1000;
 
+// TODO: handle splitting inside code blocks (close/re-open fences across chunks)
 export function chunkMessage(text: string): string[] {
   const chunks: string[] = [];
   let remaining = text;

@@ -170,8 +170,8 @@ importers:
   apps/ears:
     dependencies:
       '@hono/node-server':
-        specifier: ^1.19.9
-        version: 1.19.9(hono@4.11.10)
+        specifier: '>=1.19.10'
+        version: 1.19.11(hono@4.12.5)
       '@js-joda/core':
         specifier: ^5.7.0
         version: 5.7.0
@@ -185,8 +185,8 @@ importers:
         specifier: ^21.3.0
         version: 21.3.0
       hono:
-        specifier: ^4.11.10
-        version: 4.11.10
+        specifier: '>=4.12.4'
+        version: 4.12.5
       zod:
         specifier: ^4.3.6
         version: 4.3.6

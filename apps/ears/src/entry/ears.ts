@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { Reply } from '@simple-claude-bot/shared/shared/types';
+import type { CallbackResponse, Reply } from '@simple-claude-bot/shared/shared/types';
 import { BrainClient } from '../brainClient';
 import { CallbackServer } from '../callbackServer';
 import type { CommandContext } from '../commands';
@@ -29,7 +29,11 @@ const main = async () => {
   let platformChannel: PlatformChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxEnabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
-  async function dispatchReplies(channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]): Promise<string[][]> {
+  function calculateTypingDelay(message: string): number {
+    return 100 + message.length * 30;
+  }
+
+  async function dispatchReplies(channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]): Promise<CallbackResponse['delivered']> {
     const messagesByUserId = new Map<string, PlatformMessageInput>();
     if (messages) {
       for (const m of messages) {
@@ -37,22 +41,29 @@ const main = async () => {
       }
     }
 
-    const messageIds: string[][] = [];
-    for (const reply of replies) {
-      if (reply.delay) {
-        logger.debug(`Delaying ${reply.delay}ms before next message`);
-        await setTimeout(reply.delay);
+    const delivered: CallbackResponse['delivered'] = [];
+    for (let i = 0; i < replies.length; i++) {
+      const reply = replies[i];
+
+      if (i > 0) {
+        const delay = calculateTypingDelay(reply.message);
+        logger.debug(`Typing delay ${delay}ms before reply ${i + 1}/${replies.length}`);
+        await setTimeout(delay);
       }
 
       const target = reply.replyTo && reply.ping ? messagesByUserId.get(reply.replyTo) : undefined;
+      const sent = target ? await channel.replyTo(target, reply.message) : await channel.sendMessage(reply.message);
 
-      if (target) {
-        messageIds.push(await channel.replyTo(target, reply.message));
-      } else {
-        messageIds.push(await channel.sendMessage(reply.message));
+      for (const s of sent) {
+        delivered.push({
+          discordMessageId: s.id,
+          correlationId: reply.correlationId,
+          timestamp: new Date(s.timestamp).toISOString(),
+          message: s.message,
+        });
       }
     }
-    return messageIds;
+    return delivered;
   }
 
   // Callback server — receives typing heartbeats and message deliveries from Brain

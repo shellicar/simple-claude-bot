@@ -20,7 +20,7 @@ export interface PendingRequest {
 export interface CallbackServerOptions {
   port: number;
   host?: string;
-  dispatchReplies: (channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]) => Promise<string[][]>;
+  dispatchReplies: (channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]) => Promise<CallbackResponse['delivered']>;
 }
 
 export class CallbackServer {
@@ -81,15 +81,8 @@ export class CallbackServer {
 
         case 'message': {
           try {
-            const messageIds = await this.options.dispatchReplies(context.channel, payload.replies, context.messages);
-
-            const response = {
-              delivered: messageIds.map((ids, index) => ({
-                index,
-                messageIds: ids,
-              })),
-            } satisfies CallbackResponse;
-            return c.json(response);
+            const delivered = await this.options.dispatchReplies(context.channel, payload.replies, context.messages);
+            return c.json({ delivered } satisfies CallbackResponse);
           } catch (error) {
             logger.error(`Failed to dispatch replies: ${error}`);
             return c.json({ delivered: [] } satisfies CallbackResponse, 500);
