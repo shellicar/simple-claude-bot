@@ -13,14 +13,14 @@ import { SdkError } from '@simple-claude-bot/brain-core/errors/SdkError';
 import { getSessionId } from '@simple-claude-bot/brain-core/getSessionId';
 import { initSessionPaths } from '@simple-claude-bot/brain-core/initSessionPaths';
 import { pingSDK } from '@simple-claude-bot/brain-core/ping/pingSDK';
-import { respondToMessages } from '@simple-claude-bot/brain-core/respondToMessages';
+import { processAndCallback } from '@simple-claude-bot/brain-core/processAndCallback';
 import { resetSession } from '@simple-claude-bot/brain-core/session/resetSession';
 import { setSessionId } from '@simple-claude-bot/brain-core/session/setSessionId';
 import type { SandboxConfig } from '@simple-claude-bot/brain-core/types';
 import { sendUnprompted } from '@simple-claude-bot/brain-core/unsolicited/sendUnprompted';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
-import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { ZodError } from 'zod';
@@ -103,8 +103,12 @@ const main = async () => {
   app.post('/respond', async (c) => {
     try {
       const body = RespondRequestSchema.parse(await c.req.json());
-      const replies = await respondToMessages(audit, body, sandboxConfig);
-      return c.json({ replies } satisfies RespondResponse);
+
+      processAndCallback(body, audit, sandboxConfig).catch((error) => {
+        logger.error(`Unhandled error in background processing: ${error}`);
+      });
+
+      return c.body(null, 202);
     } catch (error) {
       return handleError(c, '/respond', error, { replies: [] });
     }

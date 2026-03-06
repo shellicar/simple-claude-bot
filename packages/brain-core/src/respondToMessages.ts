@@ -1,6 +1,6 @@
 import type { SDKUserMessage } from '@anthropic-ai/claude-agent-sdk';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { Reply } from '@simple-claude-bot/shared/shared/types';
 import type { AuditWriter } from './audit/auditLog';
 import { buildContentBlocks } from './buildContentBlocks';
 import { buildQueryOptions } from './buildQueryOptions';
@@ -10,7 +10,7 @@ import { parseResponse } from './parseResponse';
 import { saveSession } from './session/saveSession';
 import type { RespondRequestOutput, SandboxConfig } from './types';
 
-export async function respondToMessages(audit: AuditWriter, body: RespondRequestOutput, sandboxConfig: SandboxConfig): Promise<ParsedReply[]> {
+export async function respondToMessages(audit: AuditWriter, body: RespondRequestOutput, sandboxConfig: SandboxConfig): Promise<Reply[]> {
   const contentBlocks = buildContentBlocks(body.messages);
   const hasImages = contentBlocks.some((b) => b.type === 'image');
 

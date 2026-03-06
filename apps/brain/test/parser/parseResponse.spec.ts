@@ -109,16 +109,14 @@ describe('parseResponse', () => {
 
   describe('field parsing', () => {
     it('parses all fields', () => {
-      const input = ['replyTo: 122198239934939140', 'ping: true', 'delay: 1000', 'message: Hello Hellcar!'].join('\n');
+      const input = ['replyTo: 122198239934939140', 'ping: true', 'message: Hello Hellcar!'].join('\n');
 
       const result = parseResponse(input);
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        replyTo: '122198239934939140',
-        ping: true,
-        delay: 1000,
-        message: 'Hello Hellcar!',
-      });
+      expect(result[0].replyTo).toBe('122198239934939140');
+      expect(result[0].ping).toBe(true);
+      expect(result[0].message).toBe('Hello Hellcar!');
+      expect(result[0].correlationId).toBeDefined();
     });
 
     it('handles multiline messages', () => {
@@ -161,16 +159,10 @@ describe('parseResponse', () => {
       expect(result[0].ping).toBe(false);
     });
 
-    it('ignores invalid delay values', () => {
-      const input = ['delay: -100', 'message: Hello'].join('\n');
+    it('ignores unknown fields like delay', () => {
+      const input = ['delay: 1000', 'message: Hello'].join('\n');
       const result = parseResponse(input);
-      expect(result[0].delay).toBeUndefined();
-    });
-
-    it('ignores NaN delay values', () => {
-      const input = ['delay: banana', 'message: Hello'].join('\n');
-      const result = parseResponse(input);
-      expect(result[0].delay).toBeUndefined();
+      expect(result[0].message).toBe('Hello');
     });
   });
 

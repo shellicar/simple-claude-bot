@@ -1,6 +1,6 @@
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { CallbackResponse, Reply } from '@simple-claude-bot/shared/shared/types';
 import { z } from 'zod';
 import type { BrainClient } from './brainClient';
 import type { PlatformChannel } from './platform/types';
@@ -9,7 +9,7 @@ import { buildSystemPrompt } from './systemPrompts';
 export interface CommandContext {
   brain: BrainClient;
   handle: { destroy(): void };
-  dispatchReplies: (channel: PlatformChannel, replies: ParsedReply[]) => Promise<void>;
+  dispatchReplies: (channel: PlatformChannel, replies: Reply[]) => Promise<CallbackResponse['delivered']>;
   stopWorkPlay: () => void;
   triggerWorkPlay: () => void;
   getProcessing(): Promise<void> | undefined;

@@ -1,5 +1,7 @@
 import { logger } from '@simple-claude-bot/shared/logger';
+import { CompactResponseSchema, DirectResponseSchema, HealthResponseSchema, PingResponseSchema, ResetResponseSchema, RespondResponseSchema, SessionResponseSchema, UnpromptedResponseSchema } from '@simple-claude-bot/shared/shared/platform/schema';
 import type { CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { z } from 'zod';
 import type { CompactRequestInput, DirectRequestInput, ResetRequestInput, RespondRequestInput, SessionSetRequestInput, UnpromptedRequestInput } from './types';
 
 const TIMEOUT_MS = 10 * 60 * 1000;
@@ -11,39 +13,58 @@ export class BrainClient {
   ) {}
 
   public async health(): Promise<HealthResponse> {
-    return this.get<HealthResponse>('/health');
+    return this.get('/health', HealthResponseSchema);
   }
 
   public async ping(): Promise<PingResponse> {
-    return this.post<Record<string, never>, PingResponse>('/ping', {});
+    return this.post('/ping', {}, PingResponseSchema);
   }
 
   public async respond(request: RespondRequestInput): Promise<RespondResponse> {
-    return this.post<RespondRequestInput, RespondResponse>('/respond', request);
+    return this.post('/respond', request, RespondResponseSchema);
+  }
+
+  /**
+   * Send a respond request with a callback URL. Brain returns 202 immediately.
+   * Results will arrive via HTTP callbacks to the provided URL.
+   */
+  public async respondAsync(request: RespondRequestInput & { callbackUrl: string }): Promise<void> {
+    const url = `${this.baseUrl}/respond`;
+    logger.debug(`Brain POST ${url} (async, callback: ${request.callbackUrl})`);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(30_000), // Only need to wait for the 202
+    });
+    if (response.status !== 202) {
+      const body = await response.text().catch(() => '');
+      throw new Error(`Brain /respond async failed: ${response.status} ${response.statusText}: ${body}`);
+    }
   }
 
   public async unprompted(request: UnpromptedRequestInput): Promise<UnpromptedResponse> {
-    return this.post<UnpromptedRequestInput, UnpromptedResponse>('/unprompted', request);
+    return this.post('/unprompted', request, UnpromptedResponseSchema);
   }
 
   public async direct(request: DirectRequestInput): Promise<DirectResponse> {
-    return this.post<DirectRequestInput, DirectResponse>('/direct', request);
+    return this.post('/direct', request, DirectResponseSchema);
   }
 
   public async compact(request: CompactRequestInput = {}): Promise<CompactResponse> {
-    return this.post<CompactRequestInput, CompactResponse>('/compact', request);
+    return this.post('/compact', request, CompactResponseSchema);
   }
 
   public async reset(request: ResetRequestInput): Promise<ResetResponse> {
-    return this.post<ResetRequestInput, ResetResponse>('/reset', request);
+    return this.post('/reset', request, ResetResponseSchema);
   }
 
   public async getSession(): Promise<SessionResponse> {
-    return this.get<SessionResponse>('/session');
+    return this.get('/session', SessionResponseSchema);
   }
 
   public async setSession(sessionId: string): Promise<SessionResponse> {
-    return this.post<SessionSetRequestInput, SessionResponse>('/session', { sessionId });
+    return this.post('/session', { sessionId } satisfies SessionSetRequestInput, SessionResponseSchema);
   }
 
   private async withWaitingLog<T>(path: string, fn: () => Promise<T>): Promise<T> {
@@ -70,7 +91,7 @@ export class BrainClient {
     return headers;
   }
 
-  private async get<T>(path: string): Promise<T> {
+  private async get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     logger.debug(`Brain GET ${url}`);
     return this.withWaitingLog(path, async () => {
@@ -79,11 +100,11 @@ export class BrainClient {
         const body = await response.text().catch(() => '');
         throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
-      return response.json() as Promise<T>;
+      return schema.parse(await response.json());
     });
   }
 
-  private async post<TReq, TRes>(path: string, body: TReq): Promise<TRes> {
+  private async post<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     logger.debug(`Brain POST ${url}`);
     return this.withWaitingLog(path, async () => {
@@ -97,7 +118,7 @@ export class BrainClient {
         const body = await response.text().catch(() => '');
         throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
-      return response.json() as Promise<TRes>;
+      return schema.parse(await response.json());
     });
   }
 }

@@ -45,6 +45,7 @@ export class DiscordMessage implements PlatformMessageInput {
   public readonly content: string;
   public readonly createdTimestamp: number;
   public readonly attachments: PlatformAttachmentInput[];
+  public readonly messageId: string;
   /** @internal */
   public readonly _raw: Message;
 
@@ -56,6 +57,7 @@ export class DiscordMessage implements PlatformMessageInput {
     this.content = message.content;
     this.createdTimestamp = message.createdTimestamp;
     this.attachments = attachments;
+    this.messageId = message.id;
   }
 
   public static async from(message: Message): Promise<DiscordMessage> {

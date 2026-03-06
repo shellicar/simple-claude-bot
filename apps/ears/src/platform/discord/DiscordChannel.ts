@@ -1,7 +1,7 @@
 import type { Message, TextChannel } from 'discord.js';
 import { chunkMessage } from '../../chunkMessage';
 import type { PlatformMessageInput } from '../../types';
-import type { PlatformChannel } from '../types';
+import type { PlatformChannel, SentMessage } from '../types';
 import { DiscordMessage } from './DiscordMessage.js';
 
 export class DiscordChannel implements PlatformChannel {
@@ -19,21 +19,28 @@ export class DiscordChannel implements PlatformChannel {
     this.messagesByAuthorId.clear();
   }
 
-  public async sendMessage(content: string): Promise<void> {
+  public async sendMessage(content: string): Promise<SentMessage[]> {
+    const results: SentMessage[] = [];
     for (const chunk of chunkMessage(content)) {
-      await this.channel.send(chunk);
+      const sent = await this.channel.send(chunk);
+      results.push({ id: sent.id, timestamp: sent.createdTimestamp, message: chunk });
     }
+    return results;
   }
 
-  public async replyTo(message: PlatformMessageInput, content: string): Promise<void> {
+  public async replyTo(message: PlatformMessageInput, content: string): Promise<SentMessage[]> {
     const target = this.messagesByAuthorId.get(message.authorId);
+    const results: SentMessage[] = [];
     for (const chunk of chunkMessage(content)) {
       if (target) {
-        await target.reply(chunk);
+        const sent = await target.reply(chunk);
+        results.push({ id: sent.id, timestamp: sent.createdTimestamp, message: chunk });
       } else {
-        await this.channel.send(chunk);
+        const sent = await this.channel.send(chunk);
+        results.push({ id: sent.id, timestamp: sent.createdTimestamp, message: chunk });
       }
     }
+    return results;
   }
 
   public async sendTyping(): Promise<void> {
