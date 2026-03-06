@@ -59,7 +59,7 @@ export class BrainClient {
     }
   }
 
-  private buildHeaders(extra?: HeadersInit): HeadersInit {
+  private buildHeaders(extra?: Record<string, string>): Record<string, string> {
     const headers: Record<string, string> = {};
     if (this.functionKey) {
       headers['x-functions-key'] = this.functionKey;
