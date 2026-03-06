@@ -34,7 +34,7 @@ export const RespondRequestSchema = z.object({
   messages: z.array(PlatformMessageSchema),
   systemPrompt: z.string(),
   allowedTools: z.array(z.string()),
-  callbackUrl: z.string().url(),
+  callbackUrl: z.url(),
 });
 
 export const UnpromptedRequestSchema = z.object({

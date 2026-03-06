@@ -72,7 +72,7 @@ export function startDiscord(
       return;
     }
 
-    logger.info(`${message.author.displayName}: ${message.content}`);
+    logger.info(`Message ${message.id} from ${message.author.displayName} (${message.author.id}) in #${ch.name}: ${message.content}`);
     callbacks.onMessage(await DiscordMessage.from(message));
   });
 

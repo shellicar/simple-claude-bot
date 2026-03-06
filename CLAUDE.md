@@ -82,6 +82,16 @@ pnpm knip           # Detect unused exports/dependencies
 
 - **`allowedTools`** controls which tools are **auto-approved** (no permission prompt), NOT which tools are available. To restrict available tools, use the `tools` option instead.
 
+## Pull Requests
+
+Every PR must include:
+
+- **Milestone**: `1.0.0`
+- **Reviewer**: `bananabot9000`
+- **Assignee**: `shellicar`
+- **Label**: one of `bug`, `enhancement`, or `documentation` (pick the most appropriate)
+- **Auto-merge**: enable with `gh pr merge --auto --squash`
+
 ## Known Quirks
 
 - `/compact` can fail with "No conversation found with session ID" — `cwd` is now passed but compact still doesn't use `buildQueryOptions` (no hooks, no settingSources). May need further investigation.

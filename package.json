@@ -8,6 +8,7 @@
     "ci": "biome check --diagnostic-level=error",
     "ci:fix": "biome check --diagnostic-level=error --write",
     "knip": "knip",
+    "tunnel": "cloudflared tunnel --config ./config.yml run ears",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
