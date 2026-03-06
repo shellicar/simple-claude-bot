@@ -21,5 +21,5 @@ export const earsSchema = z.object({
     .default(false),
   SANDBOX_COMMANDS: z.string().default(''),
   CALLBACK_PORT: z.coerce.number().int().default(3001),
-  CALLBACK_HOST: z.string().optional(),
+  CALLBACK_HOST: z.url(),
 });

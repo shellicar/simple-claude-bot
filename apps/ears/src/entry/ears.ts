@@ -77,12 +77,14 @@ const main = async () => {
   const processQueue = async (channel: PlatformChannel) => {
     while (messageQueue.length > 0) {
       const batch = messageQueue.splice(0);
+      logger.info(`Processing batch of ${batch.length} message(s): [${batch.map((m) => m.messageId).join(', ')}]`);
       for (const m of batch) {
         channel.trackMessage(m);
       }
 
       try {
         const { callbackUrl, completed } = callbackServer.createCallback(channel, batch);
+        logger.info(`Created callback: ${callbackUrl}`);
         await brain.respondAsync({ messages: batch, systemPrompt, allowedTools: ['WebSearch', 'WebFetch'], callbackUrl });
         // Keep brain alive while waiting — periodic health pings prevent idle timeout
         const healthKeepAlive = setInterval(() => {
@@ -131,6 +133,7 @@ const main = async () => {
     onMessage: (message) => {
       resetActivity();
       messageQueue.push(message);
+      logger.info(`Queued message ${message.messageId} from ${message.authorDisplayName} (${message.authorId}), queue size: ${messageQueue.length}, processing: ${!!processing}, channel: ${!!platformChannel}`);
       if (processing || !platformChannel) {
         return;
       }

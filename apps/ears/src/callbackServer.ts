@@ -19,7 +19,7 @@ export interface PendingRequest {
 
 export interface CallbackServerOptions {
   port: number;
-  host?: string;
+  host: string;
   dispatchReplies: (channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]) => Promise<CallbackResponse['delivered']>;
 }
 
@@ -49,15 +49,16 @@ export class CallbackServer {
       resolve,
     });
 
-    const host = this.options.host ?? `localhost:${this.options.port}`;
     return {
-      callbackUrl: `http://${host}/callback/${requestId}`,
+      callbackUrl: `${this.options.host}/callback/${requestId}`,
       completed,
     };
   }
 
   public start(): void {
     const app = new Hono();
+
+    app.get('/', (c) => c.json({ status: 'ok' }));
 
     app.post('/callback/:requestId', async (c) => {
       const requestId = c.req.param('requestId');

@@ -62,7 +62,7 @@ if [ "$BUILD_ONLY" = 1 ]; then
 fi
 
 echo "🔐 Logging in to ACR..."
-az acr login --name sghacraue01
+az acr login --name sghacraue01 < /dev/null
 
 echo "📤 Pushing ${SHA_IMAGE}..."
 docker push "${SHA_IMAGE}"

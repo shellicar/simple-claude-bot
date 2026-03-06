@@ -1,0 +1,6 @@
+tunnel: 276df1f4-d7c6-4703-af57-140b8866f5a6
+credentials-file: /home/stephen/.cloudflared/276df1f4-d7c6-4703-af57-140b8866f5a6.json
+ingress:
+  - hostname: ears.bananabot.dev
+    service: http://localhost:3001
+  - service: http_status:404
