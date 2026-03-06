@@ -1,4 +1,4 @@
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { Reply } from '@simple-claude-bot/shared/shared/types';
 
 /**
  * Block delimiter: U+241E ␞ (Symbol for Record Separator)
@@ -23,13 +23,13 @@ const RS = '\u241E';
 /** Matches a lone ␞ on its own line (with optional horizontal whitespace). */
 const RS_LINE = new RegExp(`^[ \\t]*(?<!${RS})${RS}(?!${RS})[ \\t]*$`, 'm');
 
-export function parseResponse(raw: string): ParsedReply[] {
+export function parseResponse(raw: string): Reply[] {
   const blocks = splitBlocks(raw).filter((b) => b.trim().length > 0);
 
   return blocks.map((block) => parseBlock(block)).filter((r) => r.message.length > 0);
 }
 
-function parseBlock(block: string): ParsedReply {
+function parseBlock(block: string): Reply {
   const lines = block.trim().split('\n');
   let replyTo: string | undefined;
   let ping: boolean | undefined;
@@ -58,7 +58,7 @@ function parseBlock(block: string): ParsedReply {
     }
   }
 
-  return { replyTo, ping, delay, message: messageLines.join('\n').trim() } satisfies ParsedReply;
+  return { replyTo, ping, delay, message: messageLines.join('\n').trim() } satisfies Reply;
 }
 
 function splitBlocks(raw: string): string[] {

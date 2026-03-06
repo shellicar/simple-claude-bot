@@ -1,73 +1,17 @@
-export interface ParsedReply {
-  replyTo?: string;
-  ping?: boolean;
-  delay?: number;
-  message: string;
-}
+import type { z } from 'zod';
+import type { CallbackRequestSchema, CallbackResponseSchema, CompactResponseSchema, DirectResponseSchema, HealthResponseSchema, PingResponseSchema, ReplySchema, ResetResponseSchema, RespondResponseSchema, SessionResponseSchema, UnpromptedResponseSchema, VersionResponseSchema } from './platform/schema';
 
-export interface RespondResponse {
-  readonly replies: ParsedReply[];
-  readonly error?: string;
-}
+export type Reply = z.infer<typeof ReplySchema>;
 
-export interface UnpromptedResponse {
-  readonly replies: ParsedReply[];
-  readonly spoke: boolean;
-  readonly error?: string;
-}
+export type RespondResponse = z.infer<typeof RespondResponseSchema>;
+export type UnpromptedResponse = z.infer<typeof UnpromptedResponseSchema>;
+export type DirectResponse = z.infer<typeof DirectResponseSchema>;
+export type CompactResponse = z.infer<typeof CompactResponseSchema>;
+export type ResetResponse = z.infer<typeof ResetResponseSchema>;
+export type HealthResponse = z.infer<typeof HealthResponseSchema>;
+export type PingResponse = z.infer<typeof PingResponseSchema>;
+export type SessionResponse = z.infer<typeof SessionResponseSchema>;
+export type VersionResponse = z.infer<typeof VersionResponseSchema>;
 
-export interface DirectResponse {
-  readonly result: string;
-  readonly error?: string;
-}
-
-export interface CompactResponse {
-  readonly result: string;
-  readonly error?: string;
-}
-
-export interface ResetResponse {
-  readonly result: string;
-  readonly error?: string;
-}
-
-export interface HealthResponse {
-  readonly status: 'ok';
-}
-
-export interface PingResponse {
-  readonly result: string;
-  readonly error?: string;
-}
-
-export interface SessionResponse {
-  readonly sessionId: string | null;
-}
-
-export interface VersionResponse {
-  readonly version: string;
-  readonly shortSha: string;
-  readonly buildDate: string;
-}
-
-// --- Async Callback Types ---
-
-export interface CallbackTyping {
-  readonly type: 'typing';
-}
-
-export interface CallbackMessage {
-  readonly type: 'message';
-  readonly replies: ParsedReply[];
-}
-
-export type CallbackPayload = CallbackTyping | CallbackMessage;
-
-export interface CallbackDeliveredMessage {
-  readonly index: number;
-  readonly messageId: string;
-}
-
-export interface CallbackMessageResponse {
-  readonly delivered: CallbackDeliveredMessage[];
-}
+export type CallbackRequest = z.infer<typeof CallbackRequestSchema>;
+export type CallbackResponse = z.infer<typeof CallbackResponseSchema>;

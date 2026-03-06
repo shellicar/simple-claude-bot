@@ -20,10 +20,10 @@ import type { SandboxConfig } from '@simple-claude-bot/brain-core/types';
 import { sendUnprompted } from '@simple-claude-bot/brain-core/unsolicited/sendUnprompted';
 import { logger } from '@simple-claude-bot/shared/logger';
 import { CompactRequestSchema, DirectRequestSchema, ResetRequestSchema, RespondRequestSchema, SessionSetRequestSchema, UnpromptedRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
-import type { CallbackPayload, CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CallbackRequest, CompactResponse, DirectResponse, HealthResponse, PingResponse, ResetResponse, RespondResponse, SessionResponse, UnpromptedResponse } from '@simple-claude-bot/shared/shared/types';
 import { type Context, Hono } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { type z, ZodError } from 'zod';
+import { ZodError, type z } from 'zod';
 
 const main = async () => {
   const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
@@ -70,7 +70,7 @@ const main = async () => {
     return c.json(jsonBody, statusCode);
   }
 
-  async function postCallback(url: string, payload: CallbackPayload): Promise<void> {
+  async function postCallback(url: string, payload: CallbackRequest): Promise<void> {
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -86,10 +86,8 @@ const main = async () => {
     }
   }
 
-  async function processAndCallback(
-    body: z.output<typeof RespondRequestSchema>,
-  ): Promise<void> {
-    const callbackUrl = body.callbackUrl!;
+  async function processAndCallback(body: z.output<typeof RespondRequestSchema> & { callbackUrl: string }): Promise<void> {
+    const { callbackUrl } = body;
 
     // Send initial typing heartbeat immediately
     await postCallback(callbackUrl, { type: 'typing' });

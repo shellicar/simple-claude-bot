@@ -1,6 +1,6 @@
 import { Instant } from '@js-joda/core';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { Reply } from '@simple-claude-bot/shared/shared/types';
 import { timestampFormatter } from '@simple-claude-bot/shared/timestampFormatter';
 import { zone } from '@simple-claude-bot/shared/zone';
 
@@ -13,7 +13,7 @@ const QUIET_HOUR_END = 10;
 
 interface WorkPlayConfig {
   sandboxEnabled: boolean;
-  onIdle: (prompt: string, options: { allowedTools?: string[]; maxTurns?: number }) => Promise<{ replies: ParsedReply[]; spoke: boolean }>;
+  onIdle: (prompt: string, options: { allowedTools?: string[]; maxTurns?: number }) => Promise<{ replies: Reply[]; spoke: boolean }>;
   isProcessing: () => boolean;
   setProcessing: (p: Promise<void>) => void;
   setPresence?: (status: 'online' | 'idle') => void;

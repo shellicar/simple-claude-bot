@@ -19,21 +19,28 @@ export class DiscordChannel implements PlatformChannel {
     this.messagesByAuthorId.clear();
   }
 
-  public async sendMessage(content: string): Promise<void> {
+  public async sendMessage(content: string): Promise<string[]> {
+    const ids: string[] = [];
     for (const chunk of chunkMessage(content)) {
-      await this.channel.send(chunk);
+      const sent = await this.channel.send(chunk);
+      ids.push(sent.id);
     }
+    return ids;
   }
 
-  public async replyTo(message: PlatformMessageInput, content: string): Promise<void> {
+  public async replyTo(message: PlatformMessageInput, content: string): Promise<string[]> {
     const target = this.messagesByAuthorId.get(message.authorId);
+    const ids: string[] = [];
     for (const chunk of chunkMessage(content)) {
       if (target) {
-        await target.reply(chunk);
+        const sent = await target.reply(chunk);
+        ids.push(sent.id);
       } else {
-        await this.channel.send(chunk);
+        const sent = await this.channel.send(chunk);
+        ids.push(sent.id);
       }
     }
+    return ids;
   }
 
   public async sendTyping(): Promise<void> {

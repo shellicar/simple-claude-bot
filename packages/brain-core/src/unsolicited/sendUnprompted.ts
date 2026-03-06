@@ -1,5 +1,5 @@
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { Reply } from '@simple-claude-bot/shared/shared/types';
 import type { AuditWriter } from '../audit/auditLog';
 import { buildQueryOptions } from '../buildQueryOptions';
 import { executeQuery } from '../executeQuery';
@@ -8,7 +8,7 @@ import { parseResponse } from '../parseResponse';
 import { saveSession } from '../session/saveSession';
 import type { SandboxConfig, UnpromptedRequestOutput } from '../types';
 
-export async function sendUnprompted(audit: AuditWriter, body: UnpromptedRequestOutput, sandboxConfig: SandboxConfig): Promise<{ replies: ParsedReply[]; spoke: boolean }> {
+export async function sendUnprompted(audit: AuditWriter, body: UnpromptedRequestOutput, sandboxConfig: SandboxConfig): Promise<{ replies: Reply[]; spoke: boolean }> {
   try {
     logger.info(`Unprompted: ${body.prompt}`);
 

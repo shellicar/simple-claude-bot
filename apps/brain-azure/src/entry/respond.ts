@@ -1,8 +1,8 @@
 import { app } from '@azure/functions';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { CallbackPayload, RespondResponse } from '@simple-claude-bot/shared/shared/types';
+import type { CallbackRequest, RespondResponse } from '@simple-claude-bot/shared/shared/types';
 
-async function postCallback(url: string, payload: CallbackPayload): Promise<void> {
+async function postCallback(url: string, payload: CallbackRequest): Promise<void> {
   try {
     const response = await fetch(url, {
       method: 'POST',

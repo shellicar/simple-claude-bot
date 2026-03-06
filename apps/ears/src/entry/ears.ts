@@ -2,7 +2,7 @@ import { createInterface } from 'node:readline';
 import { setTimeout } from 'node:timers/promises';
 import versionInfo from '@shellicar/build-version/version';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import type { Reply } from '@simple-claude-bot/shared/shared/types';
 import { BrainClient } from '../brainClient';
 import { CallbackServer } from '../callbackServer';
 import type { CommandContext } from '../commands';
@@ -15,9 +15,7 @@ import type { PlatformMessageInput } from '../types';
 import { resetActivity, seedActivity, startWorkPlay, stopWorkPlay, triggerWorkPlay } from '../workplay.js';
 
 const main = async () => {
-  const dockerBuildTime = process.env.BANANABOT_BUILD_TIME;
-  const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
-  logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
+  logger.info(`Starting ears v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate}`);
 
   let processing: Promise<void> | undefined;
   const messageQueue: PlatformMessageInput[] = [];
@@ -31,7 +29,7 @@ const main = async () => {
   let platformChannel: PlatformChannel | undefined;
   let systemPrompt = buildSystemPrompt({ type: 'discord', sandbox: sandboxEnabled, sandboxCommands: SANDBOX_COMMANDS, botAliases });
 
-  async function dispatchReplies(channel: PlatformChannel, replies: ParsedReply[], messages?: PlatformMessageInput[]): Promise<void> {
+  async function dispatchReplies(channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]): Promise<string[][]> {
     const messagesByUserId = new Map<string, PlatformMessageInput>();
     if (messages) {
       for (const m of messages) {
@@ -39,6 +37,7 @@ const main = async () => {
       }
     }
 
+    const messageIds: string[][] = [];
     for (const reply of replies) {
       if (reply.delay) {
         logger.debug(`Delaying ${reply.delay}ms before next message`);
@@ -48,11 +47,12 @@ const main = async () => {
       const target = reply.replyTo && reply.ping ? messagesByUserId.get(reply.replyTo) : undefined;
 
       if (target) {
-        await channel.replyTo(target, reply.message);
+        messageIds.push(await channel.replyTo(target, reply.message));
       } else {
-        await channel.sendMessage(reply.message);
+        messageIds.push(await channel.sendMessage(reply.message));
       }
     }
+    return messageIds;
   }
 
   // Callback server — receives typing heartbeats and message deliveries from Brain
@@ -73,8 +73,16 @@ const main = async () => {
       try {
         const { callbackUrl, completed } = callbackServer.createCallback(channel, batch);
         await brain.respondAsync({ messages: batch, systemPrompt, allowedTools: ['WebSearch', 'WebFetch'], callbackUrl });
-        // Brain accepted (202) — wait for the message callback before processing next batch
-        await completed;
+        // Keep brain alive while waiting — periodic health pings prevent idle timeout
+        const healthKeepAlive = setInterval(() => {
+          brain.health().catch((err) => logger.warn(`Health keepalive failed: ${err}`));
+        }, 60_000);
+        try {
+          // Brain accepted (202) — wait for the message callback before processing next batch
+          await completed;
+        } finally {
+          clearInterval(healthKeepAlive);
+        }
       } catch (error) {
         logger.error(`Error sending to brain: ${error}`, error instanceof Error ? { cause: error.cause } : undefined);
         await channel.sendMessage('Sorry, I encountered an error processing your message.');

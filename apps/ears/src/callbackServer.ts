@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto';
 import type { Server } from 'node:http';
 import { serve } from '@hono/node-server';
 import { logger } from '@simple-claude-bot/shared/logger';
-import type { CallbackDeliveredMessage, CallbackMessageResponse, CallbackPayload, ParsedReply } from '@simple-claude-bot/shared/shared/types';
+import { CallbackRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
+import type { CallbackResponse, Reply } from '@simple-claude-bot/shared/shared/types';
 import { Hono } from 'hono';
+import { z } from 'zod';
 import type { PlatformChannel } from './platform/types';
 import type { PlatformMessageInput } from './types';
 
@@ -18,7 +20,7 @@ export interface PendingRequest {
 export interface CallbackServerOptions {
   port: number;
   host?: string;
-  dispatchReplies: (channel: PlatformChannel, replies: ParsedReply[], messages?: PlatformMessageInput[]) => Promise<void>;
+  dispatchReplies: (channel: PlatformChannel, replies: Reply[], messages?: PlatformMessageInput[]) => Promise<string[][]>;
 }
 
 export class CallbackServer {
@@ -59,13 +61,17 @@ export class CallbackServer {
 
     app.post('/callback/:requestId', async (c) => {
       const requestId = c.req.param('requestId');
+      if (!z.uuid().safeParse(requestId).success) {
+        return c.body(null, 400);
+      }
+
       const context = this.pendingRequests.get(requestId);
       if (!context) {
         logger.warn(`Callback for unknown request ${requestId}`);
         return c.body(null, 404);
       }
 
-      const payload = (await c.req.json()) as CallbackPayload;
+      const payload = CallbackRequestSchema.parse(await c.req.json());
 
       switch (payload.type) {
         case 'typing': {
@@ -74,25 +80,24 @@ export class CallbackServer {
         }
 
         case 'message': {
-          // Deliver replies to Discord
-          await this.options.dispatchReplies(context.channel, payload.replies, context.messages);
+          try {
+            const messageIds = await this.options.dispatchReplies(context.channel, payload.replies, context.messages);
 
-          // Clean up and signal completion
-          this.pendingRequests.delete(requestId);
-          context.channel.clearTracked();
-          context.resolve();
-
-          // Respond with delivered message IDs
-          const delivered: CallbackDeliveredMessage[] = payload.replies.map((_, index) => ({
-            index,
-            messageId: '', // TODO: capture actual Discord message IDs from dispatchReplies
-          }));
-          return c.json({ delivered } satisfies CallbackMessageResponse);
-        }
-
-        default: {
-          logger.warn(`Unknown callback type: ${(payload as { type: string }).type}`);
-          return c.body(null, 400);
+            const response = {
+              delivered: messageIds.map((ids, index) => ({
+                index,
+                messageIds: ids,
+              })),
+            } satisfies CallbackResponse;
+            return c.json(response);
+          } catch (error) {
+            logger.error(`Failed to dispatch replies: ${error}`);
+            return c.json({ delivered: [] } satisfies CallbackResponse, 500);
+          } finally {
+            this.pendingRequests.delete(requestId);
+            context.channel.clearTracked();
+            context.resolve();
+          }
         }
       }
     });
