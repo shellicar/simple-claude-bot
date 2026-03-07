@@ -30,20 +30,22 @@ export class BrainClient {
    */
   public async respondAsync(request: RespondRequestInput & { callbackUrl: string }): Promise<void> {
     const url = `${this.baseUrl}/respond`;
+    const startTime = Date.now();
     logger.info(`Brain POST /respond (async, callback: ${request.callbackUrl})`);
     logger.debug(`Brain POST /respond request: ${JSON.stringify(request)}`);
     const response = await fetch(url, {
       method: 'POST',
       headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(request),
-      signal: AbortSignal.timeout(30_000), // Only need to wait for the 202
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    const duration = Date.now() - startTime;
     if (response.status !== 202) {
       const body = await response.text().catch(() => '');
-      logger.error(`Brain POST /respond (async) → ${response.status}: ${body}`);
+      logger.error(`Brain POST /respond (async) → ${response.status} (${duration}ms): ${body}`);
       throw new Error(`Brain /respond async failed: ${response.status} ${response.statusText}: ${body}`);
     }
-    logger.info(`Brain POST /respond (async) → ${response.status}`);
+    logger.info(`Brain POST /respond (async) → ${response.status} (${duration}ms)`);
   }
 
   public async unprompted(request: UnpromptedRequestInput): Promise<UnpromptedResponse> {
@@ -96,16 +98,18 @@ export class BrainClient {
 
   private async get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const startTime = Date.now();
     logger.info(`Brain GET ${path}`);
     return this.withWaitingLog(path, async () => {
       const response = await fetch(url, { headers: this.buildHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const duration = Date.now() - startTime;
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        logger.error(`Brain GET ${path} → ${response.status}: ${body}`);
+        logger.error(`Brain GET ${path} → ${response.status} (${duration}ms): ${body}`);
         throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
       const json = await response.json();
-      logger.info(`Brain GET ${path} → ${response.status}`);
+      logger.info(`Brain GET ${path} → ${response.status} (${duration}ms)`);
       logger.debug(`Brain GET ${path} response: ${JSON.stringify(json)}`);
       return schema.parse(json);
     });
@@ -113,6 +117,7 @@ export class BrainClient {
 
   private async post<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const startTime = Date.now();
     logger.info(`Brain POST ${path}`);
     logger.debug(`Brain POST ${path} request: ${JSON.stringify(body)}`);
     return this.withWaitingLog(path, async () => {
@@ -122,13 +127,14 @@ export class BrainClient {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
+      const duration = Date.now() - startTime;
       if (!response.ok) {
         const body = await response.text().catch(() => '');
-        logger.error(`Brain POST ${path} → ${response.status}: ${body}`);
+        logger.error(`Brain POST ${path} → ${response.status} (${duration}ms): ${body}`);
         throw new Error(`Brain ${path} failed: ${response.status} ${response.statusText}: ${body}`);
       }
       const json = await response.json();
-      logger.info(`Brain POST ${path} → ${response.status}`);
+      logger.info(`Brain POST ${path} → ${response.status} (${duration}ms)`);
       logger.debug(`Brain POST ${path} response: ${JSON.stringify(json)}`);
       return schema.parse(json);
     });

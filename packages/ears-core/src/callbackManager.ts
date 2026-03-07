@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { logger } from '@simple-claude-bot/shared/logger';
+import { CallbackRequestSchema } from '@simple-claude-bot/shared/shared/platform/schema';
+import type { CallbackResponse } from '@simple-claude-bot/shared/shared/types';
+import { z } from 'zod';
+import type { dispatchReplies } from './dispatchReplies';
 import type { PlatformChannel } from './platform/types';
 import type { PlatformMessageInput } from './types';
 
@@ -9,6 +13,13 @@ export interface PendingRequest {
   startedAt: number;
   /** Resolved when the message callback arrives — lets processQueue stay serial */
   resolve: () => void;
+}
+
+export type DispatchReplies = typeof dispatchReplies;
+
+export interface CallbackResult {
+  status: number;
+  body: unknown;
 }
 
 export class CallbackManager {
@@ -22,7 +33,7 @@ export class CallbackManager {
    * Register a pending request and return the callback URL + a promise
    * that resolves when the message callback arrives (for queue serialization).
    */
-  public createCallback(channel: PlatformChannel, messages: PlatformMessageInput[]): { callbackUrl: string; completed: Promise<void> } {
+  public createCallback(channel: PlatformChannel, messages: PlatformMessageInput[]): { callbackUrl: string; requestId: string; completed: Promise<void> } {
     const requestId = randomUUID();
     let resolve!: () => void;
     const completed = new Promise<void>((r) => {
@@ -38,6 +49,7 @@ export class CallbackManager {
 
     return {
       callbackUrl: `${this.host}/callback/${requestId}`,
+      requestId,
       completed,
     };
   }
@@ -66,6 +78,39 @@ export class CallbackManager {
         }
       }
     }, 60_000);
+  }
+
+  public async handleCallback(requestId: string, body: unknown, dispatchReplies: DispatchReplies): Promise<CallbackResult> {
+    if (!z.uuid().safeParse(requestId).success) {
+      return { status: 400, body: null };
+    }
+
+    const context = this.pendingRequests.get(requestId);
+    if (!context) {
+      logger.warn(`Callback for unknown request ${requestId}`);
+      return { status: 404, body: null };
+    }
+
+    const payload = CallbackRequestSchema.parse(body);
+
+    switch (payload.type) {
+      case 'typing': {
+        await context.channel.sendTyping();
+        return { status: 200, body: {} };
+      }
+
+      case 'message': {
+        try {
+          const delivered = await dispatchReplies(context.channel, payload.replies, context.messages);
+          return { status: 200, body: { delivered } satisfies CallbackResponse };
+        } catch (error) {
+          logger.error(`Failed to dispatch replies: ${error}`);
+          return { status: 500, body: { delivered: [] } satisfies CallbackResponse };
+        } finally {
+          this.complete(requestId);
+        }
+      }
+    }
   }
 
   public stopCleanup(): void {
