@@ -58,7 +58,7 @@ ENV TZ=Australia/Melbourne
 ENV CLAUDE_SDK_CWD=/sandbox
 ENV CLAUDE_PATH=/usr/local/bin/claude-sandbox
 ENV CLAUDE_CONFIG_DIR=/home/bot/.claude
-ENV SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep, ssh, ssh-keygen"
+ENV WORKSPACE_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep, ssh, ssh-keygen"
 
 HEALTHCHECK --interval=5s --timeout=5s --retries=10 --start-period=5s \
   CMD curl -f http://localhost:3000/health || exit 1

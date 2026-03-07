@@ -8,6 +8,7 @@ import type { AuditWriter } from '../audit/auditLog';
 import { buildQueryOptions } from '../buildQueryOptions';
 import { executeQuery } from '../executeQuery';
 import { claudeGlobals } from '../globals';
+import { buildSystemPrompt } from '../systemPrompts';
 import type { ResetRequestOutput, SdkConfig } from '../types';
 import { saveSession } from './saveSession';
 
@@ -41,8 +42,10 @@ export async function resetSession(audit: AuditWriter, body: ResetRequestOutput,
 
   const seedPrompt = `The following is recent message history from the Discord channel. Your response will NOT be sent to Discord. Internalise this context and summarise what you understand — who the users are, what they've been talking about, and any ongoing topics. Do NOT reply to or continue any of the conversations.\n\n${history}`;
 
+  const systemPrompt = buildSystemPrompt({ type: 'reset' });
+
   const options = buildQueryOptions({
-    systemPrompt: body.systemPrompt,
+    systemPrompt,
     capabilities: { [BotCapability.Web]: false, [BotCapability.Workspace]: false },
     maxTurns: 10,
     sdkConfig,

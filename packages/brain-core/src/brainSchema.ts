@@ -10,6 +10,16 @@ export const brainSchema = z.object({
     .default('./sandbox'),
   CLAUDE_SDK_DEFAULT_MAXTURNS: z.coerce.number().int().positive().default(1),
   CLAUDE_SDK_WORKSPACE_MAXTURNS: z.coerce.number().int().positive().default(25),
+  BOT_ALIASES: z
+    .string()
+    .transform((val) =>
+      val
+        .split(',')
+        .map((a) => a.trim())
+        .filter(Boolean),
+    )
+    .default([]),
+  WORKSPACE_COMMANDS: z.string().default(''),
   AUDIT_DIR: z.string().default('/audit'),
   CALLBACK_HEADERS: z
     .string()

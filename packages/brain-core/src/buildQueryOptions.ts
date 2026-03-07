@@ -5,7 +5,7 @@ import { claudePath, model, sdkHooks } from './consts';
 import type { SdkConfig } from './types';
 
 const WEB_TOOLS = ['WebSearch', 'WebFetch'];
-const WORKSPACE_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep'];
+const WORKSPACE_TOOLS = ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'Task'];
 
 export function buildQueryOptions(params: { systemPrompt: string; capabilities?: Partial<Record<BotCapability, boolean>>; sdkConfig: SdkConfig; maxTurns?: number; sessionId?: string }): Options {
   const { systemPrompt, capabilities, sdkConfig, sessionId } = params;

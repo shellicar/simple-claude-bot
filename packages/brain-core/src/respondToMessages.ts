@@ -8,6 +8,7 @@ import { executeQuery } from './executeQuery';
 import { claudeGlobals } from './globals';
 import { parseResponse } from './parseResponse';
 import { saveSession } from './session/saveSession';
+import { buildSystemPrompt } from './systemPrompts';
 import type { RespondRequestOutput, SdkConfig } from './types';
 
 export async function respondToMessages(audit: AuditWriter, body: RespondRequestOutput, sdkConfig: SdkConfig): Promise<Reply[]> {
@@ -34,8 +35,17 @@ export async function respondToMessages(audit: AuditWriter, body: RespondRequest
       })()
     : promptText;
 
+  const systemPrompt = buildSystemPrompt({
+    type: 'discord',
+    workspaceEnabled: body.capabilities?.WORKSPACE ?? true,
+    workspaceCommands: sdkConfig.workspaceCommands,
+    botUserId: body.botUserId,
+    botUsername: body.botUsername,
+    botAliases: sdkConfig.botAliases,
+  });
+
   const options = buildQueryOptions({
-    systemPrompt: body.systemPrompt,
+    systemPrompt,
     capabilities: body.capabilities,
     sdkConfig,
     sessionId: claudeGlobals.sessionId,

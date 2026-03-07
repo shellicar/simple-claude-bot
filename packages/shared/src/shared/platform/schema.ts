@@ -45,28 +45,35 @@ export const CapabilitiesSchema = z
 
 // --- Request schemas ---
 
-export const RespondRequestSchema = z.object({
-  messages: z.array(PlatformMessageSchema),
-  systemPrompt: z.string(),
-  capabilities: CapabilitiesSchema,
-  callbackUrl: z.url(),
+export const BotIdentitySchema = z.object({
+  botUserId: z.string().optional(),
+  botUsername: z.string().optional(),
 });
 
-export const UnpromptedRequestSchema = z.object({
-  prompt: z.string(),
-  systemPrompt: z.string(),
-  capabilities: CapabilitiesSchema,
-});
+export const RespondRequestSchema = z
+  .object({
+    messages: z.array(PlatformMessageSchema),
+    capabilities: CapabilitiesSchema,
+    callbackUrl: z.url(),
+  })
+  .extend(BotIdentitySchema.shape);
+
+export const UnpromptedTriggerSchema = z.enum(['workplay', 'random-thought']);
+
+export const UnpromptedRequestSchema = z
+  .object({
+    trigger: UnpromptedTriggerSchema,
+    capabilities: CapabilitiesSchema,
+  })
+  .extend(BotIdentitySchema.shape);
 
 export const DirectRequestSchema = z.object({
   prompt: z.string(),
-  systemPrompt: z.string(),
   capabilities: CapabilitiesSchema,
 });
 
 export const ResetRequestSchema = z.object({
   messages: z.array(PlatformMessageSchema),
-  systemPrompt: z.string(),
 });
 
 export const SessionSetRequestSchema = z.object({

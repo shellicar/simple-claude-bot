@@ -6,7 +6,7 @@ import { initSessionPaths } from '@simple-claude-bot/brain-core/initSessionPaths
 import type { SdkConfig } from '@simple-claude-bot/brain-core/types';
 import { logger } from '@simple-claude-bot/shared/logger';
 
-const { CLAUDE_CONFIG_DIR, CLAUDE_SDK_CWD, CLAUDE_SDK_DEFAULT_MAXTURNS, CLAUDE_SDK_WORKSPACE_MAXTURNS, AUDIT_DIR, CALLBACK_HEADERS } = brainSchema.parse(env, { reportInput: true });
+const { CLAUDE_CONFIG_DIR, CLAUDE_SDK_CWD, CLAUDE_SDK_DEFAULT_MAXTURNS, CLAUDE_SDK_WORKSPACE_MAXTURNS, BOT_ALIASES, WORKSPACE_COMMANDS, AUDIT_DIR, CALLBACK_HEADERS } = brainSchema.parse(env, { reportInput: true });
 initSessionPaths(CLAUDE_CONFIG_DIR);
 
 export const audit = new AuditWriter(AUDIT_DIR);
@@ -17,6 +17,8 @@ export const sdkConfig = {
   cwd: CLAUDE_SDK_CWD,
   defaultMaxTurns: CLAUDE_SDK_DEFAULT_MAXTURNS,
   workspaceMaxTurns: CLAUDE_SDK_WORKSPACE_MAXTURNS,
+  botAliases: BOT_ALIASES,
+  workspaceCommands: WORKSPACE_COMMANDS,
 } satisfies SdkConfig;
 
 mkdirSync(sdkConfig.cwd, { recursive: true });

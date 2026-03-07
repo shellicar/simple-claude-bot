@@ -13,7 +13,7 @@ FROM mcr.microsoft.com/azure-functions/node:4-node22
 ENV AzureWebJobsScriptRoot=/home/site/wwwroot \
     AzureFunctionsJobHost__Logging__Console__IsEnabled=true \
     TZ=Australia/Melbourne \
-    SANDBOX_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep, ssh, ssh-keygen"
+    WORKSPACE_COMMANDS="node, pnpm, git, gh, jq, curl, python3, pip3, bicep, ssh, ssh-keygen"
 
 # Install sandbox tools
 RUN apt-get update \

@@ -21,7 +21,6 @@ param secrets SecretPair[]
 param discordGuild string
 param brainUrl string
 param workspaceEnabled string
-param botAliases string
 param callbackHost string
 
 var resolvedImage = image ?? '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
@@ -112,10 +111,6 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
             {
               name: 'WORKSPACE_ENABLED'
               value: workspaceEnabled
-            }
-            {
-              name: 'BOT_ALIASES'
-              value: botAliases
             }
             {
               name: 'CALLBACK_HOST'

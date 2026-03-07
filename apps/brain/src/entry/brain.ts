@@ -29,7 +29,7 @@ const main = async () => {
   const dockerBuildHash = process.env.BANANABOT_BUILD_HASH;
   logger.info(`Starting brain v${versionInfo.version} (${versionInfo.shortSha}) built ${versionInfo.buildDate} | docker: ${dockerBuildHash} built ${dockerBuildTime}`);
 
-  const { CLAUDE_CONFIG_DIR, CLAUDE_SDK_CWD, CLAUDE_SDK_DEFAULT_MAXTURNS, CLAUDE_SDK_WORKSPACE_MAXTURNS, AUDIT_DIR, CALLBACK_HEADERS } = brainSchema.parse(env, { reportInput: true });
+  const { CLAUDE_CONFIG_DIR, CLAUDE_SDK_CWD, CLAUDE_SDK_DEFAULT_MAXTURNS, CLAUDE_SDK_WORKSPACE_MAXTURNS, BOT_ALIASES, WORKSPACE_COMMANDS, AUDIT_DIR, CALLBACK_HEADERS } = brainSchema.parse(env, { reportInput: true });
 
   initSessionPaths(CLAUDE_CONFIG_DIR);
   const audit = new AuditWriter(AUDIT_DIR);
@@ -38,6 +38,8 @@ const main = async () => {
     cwd: CLAUDE_SDK_CWD,
     defaultMaxTurns: CLAUDE_SDK_DEFAULT_MAXTURNS,
     workspaceMaxTurns: CLAUDE_SDK_WORKSPACE_MAXTURNS,
+    botAliases: BOT_ALIASES,
+    workspaceCommands: WORKSPACE_COMMANDS,
   } satisfies SdkConfig;
 
   mkdirSync(sdkConfig.cwd, { recursive: true });
