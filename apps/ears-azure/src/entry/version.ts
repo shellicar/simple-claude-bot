@@ -1,5 +1,5 @@
 import { app } from '@azure/functions';
-import versionInfo from '@shellicar/build-version/version';
+import { Version } from '@simple-claude-bot/shared/version';
 
 app.http('version', {
   methods: ['GET'],
@@ -7,11 +7,7 @@ app.http('version', {
   route: 'version',
   handler: async () => {
     return {
-      jsonBody: {
-        version: versionInfo.version,
-        shortSha: versionInfo.shortSha,
-        buildDate: versionInfo.buildDate,
-      },
+      jsonBody: Version,
     };
   },
 });

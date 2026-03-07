@@ -23,6 +23,10 @@ for arg in "$@"; do
   esac
 done
 
+# Compile
+echo "📦 Building packages..."
+pnpm build
+
 # Build
 build_image banananet-brain apps/brain-azure/Dockerfile
 build_image banananet-ears apps/ears/Dockerfile

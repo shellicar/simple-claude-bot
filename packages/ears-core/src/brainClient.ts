@@ -31,7 +31,7 @@ export class BrainClient {
   public async respondAsync(request: RespondRequestInput & { callbackUrl: string }): Promise<void> {
     const url = `${this.baseUrl}/respond`;
     const startTime = Date.now();
-    logger.info(`Brain POST /respond (async, callback: ${request.callbackUrl})`);
+    logger.info(`Brain POST ${url} (async, callback: ${request.callbackUrl})`);
     logger.debug(`Brain POST /respond request: ${JSON.stringify(request)}`);
     const response = await fetch(url, {
       method: 'POST',
@@ -99,7 +99,7 @@ export class BrainClient {
   private async get<T>(path: string, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const startTime = Date.now();
-    logger.info(`Brain GET ${path}`);
+    logger.info(`Brain GET ${url}`);
     return this.withWaitingLog(path, async () => {
       const response = await fetch(url, { headers: this.buildHeaders(), signal: AbortSignal.timeout(TIMEOUT_MS) });
       const duration = Date.now() - startTime;
@@ -118,8 +118,8 @@ export class BrainClient {
   private async post<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const startTime = Date.now();
-    logger.info(`Brain POST ${path}`);
-    logger.debug(`Brain POST ${path} request: ${JSON.stringify(body)}`);
+    logger.info(`Brain POST ${url}`);
+    logger.debug(`Brain POST ${url} request: ${JSON.stringify(body)}`);
     return this.withWaitingLog(path, async () => {
       const response = await fetch(url, {
         method: 'POST',

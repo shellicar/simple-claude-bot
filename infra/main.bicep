@@ -7,7 +7,7 @@ param locationCode string = 'aue'
 param env string = 'dev'
 param brainImageTag string = 'latest'
 param earsImageTag string = 'latest'
-param firstDeploy bool = true
+param firstDeploy bool = false
 
 // Secrets — passed via Key Vault refs in bicepparam
 @secure()
@@ -17,7 +17,7 @@ param discordToken string
 @secure()
 param brainKey string
 param discordGuild string
-param botAliases string = ''
+param botAliases string
 @secure()
 param callbackHeaders string
 
@@ -283,7 +283,7 @@ module earsApp 'modules/container-app-ears.bicep' = {
     insightsConnectionString: earsInsights.outputs.connectionString
     discordToken: discordToken
     discordGuild: discordGuild
-    brainUrl: 'https://${brainApp.outputs.fqdn}'
+    brainUrl: 'https://${brainApp.outputs.fqdn}/api'
     brainKey: brainKey
     sandboxEnabled: 'true'
     botAliases: botAliases

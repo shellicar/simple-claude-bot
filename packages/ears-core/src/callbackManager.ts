@@ -48,7 +48,7 @@ export class CallbackManager {
     });
 
     return {
-      callbackUrl: `${this.host}/callback/${requestId}`,
+      callbackUrl: `${this.host}/api/callback/${requestId}`,
       requestId,
       completed,
     };

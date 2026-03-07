@@ -17,7 +17,7 @@ param brainUrl string
 @secure()
 param brainKey string
 param sandboxEnabled string
-param botAliases string = ''
+param botAliases string
 param callbackHost string
 
 var resolvedImage = image ?? '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
