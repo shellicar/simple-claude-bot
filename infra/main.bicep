@@ -1,11 +1,13 @@
 targetScope = 'resourceGroup'
 
 param location string = 'australiaeast'
+@maxLength(3)
 param locationCode string = 'aue'
+@maxLength(3)
 param env string = 'dev'
 param brainImageTag string = 'latest'
 param earsImageTag string = 'latest'
-param firstDeploy bool = false
+param firstDeploy bool = true
 
 // Secrets — passed via Key Vault refs in bicepparam
 @secure()
@@ -19,31 +21,51 @@ param botAliases string = ''
 @secure()
 param callbackHeaders string
 
-var org = 'sgh'
-var project = 'banananet'
+@maxLength(3)
+param org string = 'sgh'
+@maxLength(9)
+param project string = 'banananet'
+@maxLength(3)
+param projectShort string = 'bnn'
+
+@maxLength(3)
+param brainSegment string = 'brn'
+@maxLength(3)
+param earsSegment string = 'ear'
 
 // Shared names (project-level, no segment)
-var envName = '${org}-cae-${locationCode}-${env}-${project}-01'
-var acrName = '${org}acr${locationCode}01'
-var kvName = '${org}-kv-${locationCode}-${env}-${project}-01'
+@maxLength(60)
+param envName string = '${org}-cae-${locationCode}-${env}-${projectShort}-01'
+@maxLength(50)
+param acrName string = '${org}acr${locationCode}01'
+@maxLength(24)
+param kvName string = '${org}kv${locationCode}${env}${projectShort}01'
 
-// Brain names (segment: brain / brn)
-var brainAppName = '${org}-ca-${locationCode}-${env}-${project}-brain-01'
-var brainStorageName = '${org}sa${locationCode}${env}${project}brn01'
-var brainInsightsName = '${org}-appi-${locationCode}-${env}-${project}-brain-01'
-var brainUamiName = '${org}-uami-${locationCode}-${env}-${project}-brain-01'
-var brainImageName = '${project}-brain'
+// Brain names
+@maxLength(32)
+param brainAppName string = '${org}-ca-${locationCode}-${env}-${projectShort}-${brainSegment}-01'
+@maxLength(24)
+param brainStorageName string = '${org}sa${locationCode}${env}${projectShort}${brainSegment}01'
+@maxLength(260)
+param brainInsightsName string = '${org}-appi-${locationCode}-${env}-${projectShort}-${brainSegment}-01'
+@maxLength(128)
+param brainUamiName string = '${org}-uami-${locationCode}-${env}-${projectShort}-${brainSegment}-01'
+param brainImageName string = '${project}-brain'
+
 var brainShareNames = {
   home: 'home'
   sandbox: 'sandbox'
   audit: 'audit'
 }
 
-// Ears names (segment: ears / ers)
-var earsAppName = '${org}-ca-${locationCode}-${env}-${project}-ears-01'
-var earsInsightsName = '${org}-appi-${locationCode}-${env}-${project}-ears-01'
-var earsUamiName = '${org}-uami-${locationCode}-${env}-${project}-ears-01'
-var earsImageName = '${project}-ears'
+// Ears names
+@maxLength(32)
+param earsAppName string = '${org}-ca-${locationCode}-${env}-${projectShort}-${earsSegment}-01'
+@maxLength(260)
+param earsInsightsName string = '${org}-appi-${locationCode}-${env}-${projectShort}-${earsSegment}-01'
+@maxLength(128)
+param earsUamiName string = '${org}-uami-${locationCode}-${env}-${projectShort}-${earsSegment}-01'
+param earsImageName string = '${project}-ears'
 
 // ──────────────────────────────────────────────
 // External references
