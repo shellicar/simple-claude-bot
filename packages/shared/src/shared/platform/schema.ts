@@ -105,9 +105,15 @@ export const SessionResponseSchema = z.object({
 });
 
 export const VersionResponseSchema = z.object({
-  version: z.string(),
-  shortSha: z.string(),
   buildDate: z.string(),
+  branch: z.string(),
+  sha: z.string(),
+  shortSha: z.string(),
+  commitDate: z.string(),
+  version: z.string(),
+  node: z.string(),
+  CONTAINER_APP_REPLICA_NAME: z.string(),
+  CONTAINER_APP_REVISION: z.string(),
 });
 
 // --- Callback API ---

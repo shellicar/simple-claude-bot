@@ -2,7 +2,7 @@
   "name": "@simple-claude-bot/brain-core",
   "version": "0.0.0",
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsdown",
     "type-check": "tsc -p tsconfig.check.json"
   },
   "type": "module",
@@ -22,7 +22,9 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@simple-claude-bot/typescript-config": "workspace:*",
     "@tsconfig/node22": "^22.0.5",
+    "tsdown": "^0.12.5",
     "typescript": "^5.9.3"
   }
 }

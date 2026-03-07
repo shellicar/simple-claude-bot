@@ -8,16 +8,21 @@ param defaultImageName string
 param defaultImageTag string
 param image string?
 param uamiId string
-@secure()
-param insightsConnectionString string
-@secure()
-param discordToken string
+param allowedIp string
+param environmentStaticIp string
+
+type SecretPair = {
+  name: string
+  uri: string
+}
+
+param secrets SecretPair[]
+
 param discordGuild string
 param brainUrl string
-@secure()
-param brainKey string
 param sandboxEnabled string
-param botAliases string = ''
+param botAliases string
+param callbackHost string
 
 var resolvedImage = image ?? '${acrLoginServer}/${defaultImageName}:${defaultImageTag}'
 
@@ -38,26 +43,41 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
     workloadProfileName: 'Consumption'
     configuration: {
       activeRevisionsMode: 'Single'
+      ingress: {
+        external: true
+        targetPort: 80
+        transport: 'Auto'
+        allowInsecure: false
+        traffic: [
+          {
+            weight: 100
+            latestRevision: true
+          }
+        ]
+        ipSecurityRestrictions: [
+          {
+            name: 'allow-owner'
+            ipAddressRange: allowedIp
+            action: 'Allow'
+          }
+          {
+            name: 'allow-environment'
+            ipAddressRange: '${environmentStaticIp}/32'
+            action: 'Allow'
+          }
+        ]
+      }
       registries: [
         {
           server: acrLoginServer
           identity: uamiId
         }
       ]
-      secrets: [
-        {
-          name: 'appinsightsconnectionstring'
-          value: insightsConnectionString
-        }
-        {
-          name: 'discordtoken'
-          value: discordToken
-        }
-        {
-          name: 'brainkey'
-          value: brainKey
-        }
-      ]
+      secrets: [for secret in secrets: {
+        name: secret.name
+        keyVaultUrl: secret.uri
+        identity: uamiId
+      }]
     }
     template: {
       containers: [
@@ -96,6 +116,10 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
             {
               name: 'BOT_ALIASES'
               value: botAliases
+            }
+            {
+              name: 'CALLBACK_HOST'
+              value: callbackHost
             }
             {
               name: 'TZ'
