@@ -115,10 +115,6 @@ resource app 'Microsoft.App/containerapps@2025-02-02-preview' = {
               value: callbackHost
             }
             {
-              name: 'CALLBACK_PORT'
-              value: '80'
-            }
-            {
               name: 'TZ'
               value: 'Australia/Melbourne'
             }

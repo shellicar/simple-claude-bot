@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+const inputNumberSchema = z
+  .string()
+  .transform((val) => {
+    const trimmed = val.trim();
+    if (trimmed === '' || Number.isNaN(Number(trimmed))) {
+      return val;
+    }
+    return Number(trimmed);
+  })
+  .pipe(z.number().int().min(1));
+
 export const earsSchema = z.object({
   DISCORD_TOKEN: z.string().min(1),
   DISCORD_GUILD: z.string().min(1),
@@ -20,6 +31,6 @@ export const earsSchema = z.object({
     .transform((val) => val === 'true')
     .default(false),
   SANDBOX_COMMANDS: z.string().default(''),
-  CALLBACK_PORT: z.coerce.number().int().default(3001),
+  CONTAINER_APP_PORT: inputNumberSchema,
   CALLBACK_HOST: z.url(),
 });

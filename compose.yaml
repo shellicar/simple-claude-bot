@@ -9,7 +9,8 @@ services:
     tty: true
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3001:80"
     env_file: .env
     environment:
       TZ: Australia/Melbourne
+      CONTAINER_APP_PORT: "80"

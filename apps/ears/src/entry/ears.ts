@@ -12,7 +12,7 @@ const main = async () => {
   const signal = createShutdownController();
   const config = earsSchema.parse(process.env, { reportInput: true });
   const earsApp = createEarsApp(config, signal);
-  createHono(earsApp, config.CALLBACK_PORT, signal);
+  createHono(earsApp, config.CONTAINER_APP_PORT, signal);
   createCommandReader(earsApp.commandContext, signal);
 };
 
