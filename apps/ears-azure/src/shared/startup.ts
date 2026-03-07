@@ -4,7 +4,7 @@ import { earsSchema } from '@simple-claude-bot/ears-core/earsSchema';
 import { logger } from '@simple-claude-bot/shared/logger';
 
 const controller = new AbortController();
-const config = earsSchema.parse(env);
+const config = earsSchema.parse(env, { reportInput: true });
 
 export const earsApp = createEarsApp(config, controller.signal);
 export const shutdownController = controller;
