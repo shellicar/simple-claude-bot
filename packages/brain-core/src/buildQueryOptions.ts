@@ -15,8 +15,8 @@ const canUseTool: CanUseTool = async (_toolName, _input, options): Promise<Permi
   };
 };
 
-export function buildQueryOptions(params: { systemPrompt: string; capabilities?: Partial<Record<BotCapability, boolean>>; sdkConfig: SdkConfig; maxTurns?: number; sessionId?: string }): Options {
-  const { systemPrompt, capabilities, sdkConfig, sessionId } = params;
+export function buildQueryOptions(params: { systemPrompt: string; capabilities?: Partial<Record<BotCapability, boolean>>; sdkConfig: SdkConfig; maxTurns?: number; sessionId?: string; abortController?: AbortController }): Options {
+  const { systemPrompt, capabilities, sdkConfig, sessionId, abortController } = params;
 
   const webEnabled = capabilities?.[BotCapability.Web] ?? true;
   const workspaceEnabled = capabilities?.[BotCapability.Workspace] ?? true;
@@ -50,5 +50,6 @@ export function buildQueryOptions(params: { systemPrompt: string; capabilities?:
     hooks: sdkHooks,
     env: buildEnv(),
     ...(sessionId ? { resume: sessionId } : {}),
+    ...(abortController ? { abortController } : {}),
   } satisfies Options;
 }
